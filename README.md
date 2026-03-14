@@ -73,8 +73,9 @@ npm run dev
 ```
 The React application will be available at http://localhost:5173.
 ### 📸 Platform Preview
-
-
+![DyslexiScan Dashboard](assets/Dashboard.jpeg)
+![Smart Pen Hardware](assets/SmartPen.jpeg)
+![DyslexiScan Dashboard](assets/HandwritingAnalysis.jpeg)
 Note to self: Drop a photo of the smart pen / hardware setup here!
 
 ### 🧠 System Architecture
