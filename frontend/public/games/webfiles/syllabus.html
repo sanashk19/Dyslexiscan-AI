@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dyslexia Friendly Learning</title>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+body{
+    margin:0;
+    font-family:'Lexend', sans-serif;
+    background:linear-gradient(135deg,#eef2ff,#fff1f2);
+    color:#222;
+}
+
+header{
+    text-align:center;
+    padding:25px;
+    font-size:30px;
+    font-weight:600;
+    background:linear-gradient(90deg,#6366f1,#ec4899);
+    color:white;
+}
+
+.container{
+    max-width:1100px;
+    margin:30px auto;
+    padding:30px;
+    background:white;
+    border-radius:30px;
+    box-shadow:0 30px 60px rgba(0,0,0,0.08);
+}
+
+h2{
+    margin-top:40px;
+}
+
+.poem{
+    font-size:20px;
+    line-height:2.2;
+    letter-spacing:1px;
+}
+
+.highlight{
+    background:#fde047;
+    padding:3px 6px;
+    border-radius:8px;
+}
+
+button{
+    padding:12px 20px;
+    border:none;
+    border-radius:12px;
+    background:#6366f1;
+    color:white;
+    font-size:16px;
+    margin:10px 5px;
+    cursor:pointer;
+}
+
+button:hover{
+    transform:scale(1.05);
+}
+
+.score{
+    font-size:20px;
+    margin-top:10px;
+    font-weight:600;
+    color:#16a34a;
+}
+
+.numberBox{
+    font-size:70px;
+    text-align:center;
+    margin-top:20px;
+}
+
+.apples{
+    font-size:40px;
+    text-align:center;
+    margin-top:10px;
+}
+
+.guidance{
+    display:none;
+    background:#fef9c3;
+    padding:20px;
+    border-radius:20px;
+    margin-top:20px;
+}
+
+/* Matching Game */
+.match-container{
+    display:flex;
+    justify-content:space-between;
+    margin-top:20px;
+}
+
+.match-column{
+    width:45%;
+}
+
+.match-item{
+    background:#f3f4f6;
+    padding:15px;
+    margin:10px 0;
+    border-radius:15px;
+    font-size:22px;
+    cursor:pointer;
+    text-align:center;
+}
+
+.correct{
+    background:#bbf7d0 !important;
+}
+
+.wrong{
+    background:#fecaca !important;
+}
+
+</style>
+</head>
+<body>
+
+<header>DYSLEXIA FRIENDLY LEARNING</header>
+
+<div class="container">
+
+<h2>📖 Poem: Two Little Hands</h2>
+
+<div id="poemText" class="poem">
+Two little hands go clap clap clap.<br>
+Two little legs go tap tap tap.<br>
+Two little eyes are open wide.<br>
+One little head goes side to side.<br><br>
+
+Two little eyes to look around.<br>
+Two little ears to hear any sound.<br>
+One little nose to smell and breathe.<br>
+One little mouth that likes to eat.<br><br>
+
+Hands to clap, legs to walk.<br>
+Nose to smell, mouth to talk.<br>
+Head to move, eyes to see.<br>
+I have a little body that belongs to me.
+</div>
+
+<button onclick="robotRead()">🤖 Robot Read</button>
+<button onclick="startListening()">🎤 Start Speaking</button>
+<button onclick="stopListening()">🛑 Stop</button>
+
+<div class="score" id="poemScore"></div>
+
+<hr>
+
+<h2>🔢 Counting Practice</h2>
+
+<div class="numberBox" id="numberDisplay">1</div>
+<div class="apples" id="appleDisplay">🍎</div>
+
+<button onclick="robotCount()">🤖 Say Number</button>
+<button onclick="startCounting()">🎤 Start Speaking</button>
+<button onclick="stopListening()">🛑 Stop</button>
+
+<div class="score" id="countScore"></div>
+
+<hr>
+
+<h2>🎯 Emoji Matching Game</h2>
+
+<p><b>Match the body part with its action</b></p>
+
+<div class="match-container">
+
+<div class="match-column" id="leftColumn">
+<div class="match-item" onclick="selectLeft(this,'eyes')">👀 Eyes</div>
+<div class="match-item" onclick="selectLeft(this,'mouth')">👄 Mouth</div>
+<div class="match-item" onclick="selectLeft(this,'hands')">🙌 Hands</div>
+<div class="match-item" onclick="selectLeft(this,'ears')">👂 Ears</div>
+<div class="match-item" onclick="selectLeft(this,'nose')">👃 Nose</div>
+</div>
+
+<div class="match-column">
+<div class="match-item" onclick="selectRight(this,'hands')">👏 Clap</div>
+<div class="match-item" onclick="selectRight(this,'eyes')">👓 See</div>
+<div class="match-item" onclick="selectRight(this,'mouth')">🍎 Eat & Talk</div>
+<div class="match-item" onclick="selectRight(this,'ears')">🔊 Hear</div>
+<div class="match-item" onclick="selectRight(this,'nose')">🌸 Smell</div>
+</div>
+
+</div>
+
+<div class="score" id="matchScore"></div>
+
+<hr>
+
+<button onclick="toggleGuide()">📘 Teacher Guidance</button>
+
+<div class="guidance" id="guideBox">
+<h3>How To Teach (Dyslexia Friendly Method)</h3>
+• Use finger tracking while reading.<br>
+• Encourage repetition calmly.<br>
+• Use body movement during poem.<br>
+• Use real objects while counting.<br>
+• In matching game, let child think before clicking.<br>
+• Appreciate effort more than perfection.<br>
+</div>
+
+</div>
+
+<script>
+
+let recognition;
+let mode="poem";
+let currentNumber=1;
+let selectedLeft=null;
+let correctMatches=0;
+
+if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous=true;
+    recognition.interimResults=true;
+    recognition.lang="en-US";
+
+    recognition.onresult=function(event){
+        let transcript="";
+        for(let i=event.resultIndex;i<event.results.length;i++){
+            transcript+=event.results[i][0].transcript;
+        }
+
+        if(mode==="poem"){
+            highlightPoem(transcript);
+        }else{
+            checkCounting(transcript);
+        }
+    };
+}
+
+function robotRead(){
+    mode="poem";
+    let text=document.getElementById("poemText").innerText;
+    let speech=new SpeechSynthesisUtterance(text);
+    speech.rate=0.7;
+    window.speechSynthesis.speak(speech);
+}
+
+function startListening(){ mode="poem"; recognition.start(); }
+function startCounting(){ mode="count"; recognition.start(); }
+function stopListening(){ recognition.stop(); }
+
+function highlightPoem(spoken){
+    let original=document.getElementById("poemText").innerText;
+    let words=original.split(" ");
+    let spokenWords=spoken.toLowerCase().split(" ");
+    let result="";
+    let matchCount=0;
+
+    words.forEach(word=>{
+        if(spokenWords.includes(word.toLowerCase().replace(/[^a-z]/g,''))){
+            result+="<span class='highlight'>"+word+"</span> ";
+            matchCount++;
+        }else{
+            result+=word+" ";
+        }
+    });
+
+    document.getElementById("poemText").innerHTML=result;
+    let score=Math.floor((matchCount/words.length)*100);
+    document.getElementById("poemScore").innerText="Accuracy: "+score+"%";
+}
+
+function robotCount(){
+    mode="count";
+    let speech=new SpeechSynthesisUtterance(currentNumber+" apple");
+    speech.rate=0.7;
+    window.speechSynthesis.speak(speech);
+}
+
+function checkCounting(spoken){
+    let numWords=["one","two","three","four","five","six","seven","eight","nine","ten"];
+    let expectedWord=numWords[currentNumber-1];
+
+    if(spoken.toLowerCase().includes(expectedWord)){
+        currentNumber++;
+        if(currentNumber>10) currentNumber=1;
+        updateNumber();
+        document.getElementById("countScore").innerText="Correct ✔";
+    }
+}
+
+function updateNumber(){
+    document.getElementById("numberDisplay").innerText=currentNumber;
+    document.getElementById("appleDisplay").innerText="🍎".repeat(currentNumber);
+}
+
+/* Matching Game Logic */
+
+function selectLeft(element,value){
+    selectedLeft={element,value};
+}
+
+function selectRight(element,value){
+    if(!selectedLeft) return;
+
+    if(selectedLeft.value===value){
+        selectedLeft.element.classList.add("correct");
+        element.classList.add("correct");
+        correctMatches++;
+    }else{
+        selectedLeft.element.classList.add("wrong");
+        element.classList.add("wrong");
+    }
+
+    selectedLeft=null;
+
+    document.getElementById("matchScore").innerText=
+        "Matches Correct: "+correctMatches+"/5";
+}
+
+function toggleGuide(){
+    let box=document.getElementById("guideBox");
+    box.style.display=box.style.display==="none"?"block":"none";
+}
+
+updateNumber();
+
+</script>
+
+</body>
+</html>

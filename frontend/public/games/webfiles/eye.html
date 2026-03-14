@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OCULI | Advanced Blink & Gaze Diagnostics</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --primary: #6366f1; --danger: #f43f5e; --success: #10b981; --bg: #030712; --card: #111827; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: #f3f4f6; height: 100vh; overflow: hidden; }
+        #cal-dot { width: 30px; height: 30px; background: white; border: 5px solid var(--primary); border-radius: 50%; position: fixed; display: none; z-index: 10000; box-shadow: 0 0 20px var(--primary); }
+        #posture-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+        .dashboard { display: grid; grid-template-columns: 380px 1fr; height: 100vh; }
+        .sidebar { background: var(--card); border-right: 1px solid #1f2937; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
+        .cam-feed { width: 100%; height: 200px; background: #000; border-radius: 20px; overflow: hidden; position: relative; border: 2px solid #374151; }
+        video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); object-fit: cover; }
+        .metric { background: #1f2937; border-radius: 16px; padding: 15px; border: 1px solid #374151; }
+        .m-lab { color: #9ca3af; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+        .m-val { font-size: 24px; font-weight: 800; }
+        .reader-zone { padding: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #paper { width: 100%; max-width: 800px; background: #fff; padding: 60px; border-radius: 12px; color: #1f2937; opacity: 0.1; transition: 0.5s; }
+        .text-line { font-size: 24px; line-height: 2.2; margin-bottom: 8px; padding: 10px 20px; border-radius: 8px; border-left: 6px solid transparent; transition: 0.3s; }
+        .gaze-focus { border-left-color: var(--primary) !important; background: rgba(99, 102, 241, 0.1); }
+        .btn { padding: 18px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .btn:hover { filter: brightness(1.2); }
+        .btn-start { background: var(--primary); color: white; }
+        .btn-stop { background: var(--danger); color: white; }
+        #timer-display { color: var(--danger); font-family: monospace; font-size: 36px; text-align: center; font-weight: 800; }
+    </style>
+</head>
+<body>
+
+<div id="cal-dot"></div>
+<div id="posture-overlay"><div style="text-align:center;"><h1 style="color:var(--danger); font-size: 48px;">POSTURE ERROR</h1><p>Please center your face to the camera</p></div></div>
+
+<div class="dashboard">
+    <div class="sidebar">
+        <h2>OCULI <span style="color:var(--primary)">ULTRA</span></h2>
+        <div id="timer-display">00:30</div>
+        <div class="cam-feed"><video id="vid" playsinline></video><canvas id="out"></canvas></div>
+        
+        <div class="metric"><div class="m-lab">Blinks / Regressions</div><div class="m-val"><span id="blinks">0</span> | <span id="regs">0</span></div></div>
+        <div class="metric"><div class="m-lab">Intensity Risk</div><div class="m-val" id="score">0%</div></div>
+
+        <button id="cBtn" class="btn btn-start" onclick="runCalibration()">1. Calibrate Eyes</button>
+        <button id="sBtn" class="btn btn-start" style="display:none" onclick="startTest()">2. Start Reading</button>
+        <button id="eBtn" class="btn btn-stop" style="display:none" onclick="stopTestManually()">End Session</button>
+        <button id="pdfBtn" class="btn" style="display:none; background:var(--success); color:white;" onclick="generateMedicalReport()">Download Report</button>
+    </div>
+
+    <div class="reader-zone">
+        <div id="paper">
+            <div class="text-line" id="l-0">Efficient eye tracking requires minimal backtracking.</div>
+            <div class="text-line" id="l-1">A typical reader moves fluidly across the sentence.</div>
+            <div class="text-line" id="l-2">Dyslexia involves re-processing words multiple times.</div>
+            <div class="text-line" id="l-3">This heat-map will highlight your areas of struggle.</div>
+            <div class="text-line" id="l-4">Keep your focus steady until the timer reaches zero.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const synth = window.speechSynthesis;
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let osc = null; let isBeeping = false;
+
+    const state = {
+        active: false, calibrating: false,
+        blinks: 0, regs: 0, lastRelX: null,
+        yMin: 1, yMax: 0,
+        timeLeft: 30, timerId: null,
+        lineTimes: [0, 0, 0, 0, 0],
+        blinkLocked: false, // Debounce for blink
+        calPoints: [{x:'10%',y:'10%'}, {x:'90%',y:'10%'}, {x:'50%',y:'50%'}, {x:'10%',y:'90%'}, {x:'90%',y:'90%'}],
+        curPt: 0, lastSpeechTime: 0
+    };
+
+    function speak(text) {
+        if (Date.now() - state.lastSpeechTime < 4000) return; // Prevent voice overlap
+        synth.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.rate = 0.9;
+        state.lastSpeechTime = Date.now();
+        synth.speak(msg);
+    }
+
+    function beep(f) { if (isBeeping) return; osc = audioCtx.createOscillator(); osc.frequency.setValueAtTime(f, audioCtx.currentTime); osc.connect(audioCtx.destination); osc.start(); isBeeping = true; }
+    function stopBeep() { if(osc){osc.stop(); osc=null;} isBeeping = false; }
+
+    const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+    faceMesh.setOptions({ refineLandmarks: true, minDetectionConfidence: 0.85 });
+
+    faceMesh.onResults(res => {
+        const ctx = document.getElementById('out').getContext('2d');
+        ctx.clearRect(0,0,300,150);
+        if (!res.multiFaceLandmarks || res.multiFaceLandmarks.length === 0) return;
+        const lm = res.multiFaceLandmarks[0];
+
+        // 1. IMPROVED POSTURE CHECK
+        const nose = lm[1];
+        const leftEye = lm[33];
+        const rightEye = lm[263];
+        const headTilt = Math.abs(leftEye.y - rightEye.y);
+        const headTurn = Math.abs(lm[454].z - lm[234].z);
+
+        if (headTurn > 0.09 || headTilt > 0.05) {
+            document.getElementById('posture-overlay').style.display = 'flex';
+            if(state.active) speak("Keep your head properly");
+            return;
+        }
+        document.getElementById('posture-overlay').style.display = 'none';
+
+        // 2. IRIS IN SOCKET TRACKING
+        const eyeWidth = Math.abs(lm[33].x - lm[133].x);
+        const relX = (lm[468].x - lm[33].x) / (lm[133].x - lm[33].x);
+        const iY = (lm[468].y + lm[473].y)/2;
+
+        // 3. REFINED BLINK DETECTION
+        const ear = (Math.abs(lm[159].y - lm[145].y)) / eyeWidth;
+        if (ear < 0.13) {
+            if(!state.blinkLocked) {
+                if(state.active) state.blinks++;
+                state.blinkLocked = true; // Lock until eye opens
+            }
+        } else {
+            state.blinkLocked = false;
+        }
+
+        if (state.active) {
+            // Tracking Focus
+            const normalizedY = (iY - state.yMin) / (state.yMax - state.yMin);
+            const lineIdx = Math.max(0, Math.min(4, Math.floor(normalizedY * 5)));
+            state.lineTimes[lineIdx]++;
+
+            document.querySelectorAll('.text-line').forEach(l => l.classList.remove('gaze-focus'));
+            document.getElementById(`l-${lineIdx}`).classList.add('gaze-focus');
+
+            // REGRESSION (Muted during blink)
+            if (state.lastRelX !== null && !state.blinkLocked) {
+                const diff = relX - state.lastRelX;
+                if (diff > 0.075) { 
+                    state.regs++; beep(550); setTimeout(stopBeep, 120); 
+                }
+            }
+            state.lastRelX = relX;
+
+            document.getElementById('blinks').innerText = state.blinks;
+            document.getElementById('regs').innerText = state.regs;
+            document.getElementById('score').innerText = Math.min((state.regs * 12) + (state.blinks * 3), 100) + "%";
+        }
+
+        if (state.calibrating) { state.yMin = Math.min(state.yMin, iY); state.yMax = Math.max(state.yMax, iY); }
+        ctx.fillStyle = "#6366f1";
+        [468, 473].forEach(p => { ctx.beginPath(); ctx.arc(lm[p].x*300, lm[p].y*150, 2, 0, 7); ctx.fill(); });
+    });
+
+    const cam = new Camera(document.getElementById('vid'), {
+        onFrame: async () => await faceMesh.send({image: document.getElementById('vid')}),
+        width: 640, height: 480
+    });
+    cam.start();
+
+    function runCalibration() {
+        state.calibrating = true;
+        document.getElementById('cal-dot').style.display = 'block';
+        speak("Please click on each white dot while following it with your eyes.");
+        moveDot();
+    }
+
+    function moveDot() {
+        const d = document.getElementById('cal-dot');
+        const p = state.calPoints[state.curPt];
+        d.style.left = p.x; d.style.top = p.y;
+        d.onclick = () => {
+            state.curPt++;
+            if(state.curPt < state.calPoints.length) moveDot();
+            else { 
+                d.style.display = 'none'; state.calibrating = false; 
+                document.getElementById('cBtn').style.display = 'none'; 
+                document.getElementById('sBtn').style.display = 'block'; 
+                speak("Calibration successful. You may start the reading assessment.");
+            }
+        };
+    }
+
+    function startTest() {
+        audioCtx.resume(); state.active = true;
+        document.getElementById('paper').style.opacity = "1";
+        document.getElementById('sBtn').style.display = 'none';
+        document.getElementById('eBtn').style.display = 'block';
+        state.timerId = setInterval(() => {
+            state.timeLeft--;
+            document.getElementById('timer-display').innerText = `00:${state.timeLeft < 10 ? '0'+state.timeLeft : state.timeLeft}`;
+            if(state.timeLeft <= 0) stopTestManually();
+        }, 1000);
+    }
+
+    function stopTestManually() {
+        state.active = false;
+        clearInterval(state.timerId);
+       document.getElementById('eBtn').style.display = 'none';
+        document.getElementById('pdfBtn').style.display = 'block';
+        
+        // Finalize Heatmap
+        const maxHeat = Math.max(...state.lineTimes);
+        state.lineTimes.forEach((val, i) => {
+            const intensity = val / (maxHeat || 1);
+            const el = document.getElementById(`l-${i}`);
+            el.style.backgroundColor = `rgba(244, 63, 94, ${intensity * 0.45})`;
+            el.style.borderLeftColor = `rgba(244, 63, 94, ${intensity + 0.2})`;
+        });
+        speak("Reading finished. Your focus heatmap is now visible.");
+    }
+
+    function generateMedicalReport() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const score = document.getElementById('score').innerText;
+        doc.setFillColor(17, 24, 39); doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text("OCULI CLINICAL ANALYSIS", 20, 25);
+        doc.setTextColor(0, 0, 0); doc.setFontSize(12);
+        doc.text(`Patient Assessment Risk: ${score}`, 20, 60);
+        doc.text(`Total Blinks Captured: ${state.blinks}`, 20, 75);
+        doc.text(`Total Regressions (Back-jumps): ${state.regs}`, 20, 90);
+        doc.text("Clinical Note: High regression counts combined with frequent blinking often", 20, 110);
+        doc.text("correlate with visual processing fatigue or phonological dyslexia.", 20, 117);
+        doc.save("Oculi_Diagnostic_Report.pdf");
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linguistic Neural Scan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #0a0a1a; /* Deep midnight blue */
+            color: #fff;
+            font-family: 'Lexend', sans-serif; /* Using the font from the original file */
+        }
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+        }
+        .btn-glow {
+            background: linear-gradient(90deg, #00f2fe, #4facfe);
+            box-shadow: 0 0 15px #00f2fe;
+        }
+        .btn-glow:hover {
+            box-shadow: 0 0 25px #00f2fe, 0 0 10px #4facfe;
+        }
+        .game-module-card {
+             background: rgba(10, 20, 40, 0.7);
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <div id="particles-js"></div>
+
+    <div id="dashboard" class="min-h-screen flex flex-col items-center justify-center p-4 relative">
+        <button onclick="window.parent.postMessage({ type: 'DYSLEXISCAN_NAVIGATE', path: '/games' }, window.location.origin)" class="absolute top-4 left-4 px-6 py-2 rounded-full text-white font-semibold bg-gray-700 hover:bg-gray-600 transition">Back to Games</button>
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-blue-500">Linguistic Neural Scan</h1>
+            <p class="text-gray-400 mt-2">A Medical-Grade Diagnostic Tool</p>
+            <button id="start-screening-btn" class="mt-8 px-8 py-3 rounded-full text-white font-semibold btn-glow transition-transform transform hover:scale-105">Start Screening</button>
+        </div>
+
+        <!-- Age Selection Cards -->
+        <div id="age-selection" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            <a href="5-7yrs.html" class="glass-card p-6 text-center cursor-pointer" data-age="5-7">
+                <h2 class="text-2xl font-bold">5-7 yrs</h2>
+                <p class="text-gray-300">Early Phonological Awareness</p>
+            </a>
+            <a href="8-10yrs.html" class="glass-card p-6 text-center cursor-pointer" data-age="8-10">
+                <h2 class="text-2xl font-bold">8-10+ yrs</h2>
+                <p class="text-gray-300">Decoding & Fluency</p>
+            </a>
+            <a href="11-14yrs.html" class="glass-card p-6 text-center cursor-pointer" data-age="11-14">
+                <h2 class="text-2xl font-bold">11-14 yrs</h2>
+                <p class="text-gray-300">Complex Reading Comprehension</p>
+            </a>
+            <a href=hs.html class="glass-card p-6 text-center cursor-pointer" data-age="15-18">
+                <h2 class="text-2xl font-bold">15-18 yrs</h2>
+                <p class="text-gray-300">Advanced Language Processing</p>
+            </a>
+        </div>
+
+        <!-- 5-7 Year View -->
+        <div id="view-5-7" class="hidden mt-12 w-full max-w-4xl">
+            <h3 class="text-center text-3xl font-semibold mb-8">Game Modules: 5-7 Years</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card game-module-card p-6 text-center cursor-pointer" data-game="imposter">
+                    <h4 class="text-xl font-bold">Find the Imposter</h4>
+                    <p class="text-sm text-gray-400 mt-2">Tests Visual Discrimination & Letter Reversal</p>
+                </div>
+                <div class="glass-card game-module-card p-6 text-center cursor-pointer" data-game="robot">
+                    <h4 class="text-xl font-bold">Robot Speak</h4>
+                    <p class="text-sm text-gray-400 mt-2">Tests Auditory Phonemic Blending</p>
+                </div>
+                <div class="glass-card game-module-card p-6 text-center cursor-pointer" data-game="rhyme">
+                    <h4 class="text-xl font-bold">Rhyme Selector</h4>
+                    <p class="text-sm text-gray-400 mt-2">Tests Phonological Awareness</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Stage Overlay -->
+    <div id="game-stage" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 flex-col items-center justify-center p-4">
+        <div class="w-full max-w-6xl">
+            <div class="flex justify-between items-center mb-4">
+                <button id="back-to-dashboard" class="px-6 py-2 rounded-full text-white font-semibold bg-gray-700 hover:bg-gray-600 transition">Back to Dashboard</button>
+                <div class="w-1/2 bg-gray-700 rounded-full h-4">
+                    <div id="progress-bar" class="bg-gradient-to-r from-cyan-300 to-blue-500 h-4 rounded-full" style="width: 10%"></div>
+                </div>
+            </div>
+            <div id="game-content" class="glass-card w-full h-[70vh] p-8">
+                <!-- Game content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Particles.js Config
+            particlesJS('particles-js', {
+                particles: {
+                    number: { value: 80, density: { enable: true, value_area: 800 } },
+                    color: { value: '#00f2fe' },
+                    shape: { type: 'circle' },
+                    opacity: { value: 0.5, random: true },
+                    size: { value: 3, random: true },
+                    line_linked: { enable: true, distance: 150, color: '#4facfe', opacity: 0.4, width: 1 },
+                    move: { enable: true, speed: 1, direction: 'none', random: false, straight: false, out_mode: 'out', bounce: false }
+                },
+                interactivity: {
+                    detect_on: 'canvas',
+                    events: { onhover: { enable: true, mode: 'grab' }, onclick: { enable: true, mode: 'push' }, resize: true },
+                    modes: { grab: { distance: 140, line_opacity: 1 }, bubble: { distance: 400, size: 40, duration: 2, opacity: 8, speed: 3 }, repulse: { distance: 200, duration: 0.4 }, push: { particles_nb: 4 }, remove: { particles_nb: 2 } }
+                },
+                retina_detect: true
+            });
+
+            // UI Elements
+            const startBtn = document.getElementById('start-screening-btn');
+            const ageSelection = document.getElementById('age-selection');
+            const ageCards = ageSelection.querySelectorAll('.glass-card');
+            const view57 = document.getElementById('view-5-7');
+            const gameModuleCards = view57.querySelectorAll('.glass-card');
+            const dashboard = document.getElementById('dashboard');
+            const gameStage = document.getElementById('game-stage');
+            const backToDashboardBtn = document.getElementById('back-to-dashboard');
+            const gameContent = document.getElementById('game-content');
+
+            // Animations
+            const tl = gsap.timeline({ paused: true });
+            tl.to(dashboard, { opacity: 0, y: -50, duration: 0.5, onComplete: () => dashboard.classList.add('hidden') })
+              .fromTo(gameStage, { opacity: 0, y: 50, display: 'none' }, { opacity: 1, y: 0, display: 'flex', duration: 0.5 });
+
+            // Event Listeners
+            startBtn.addEventListener('click', () => {
+                gsap.to(startBtn, { opacity: 0, y: -20, duration: 0.3, onComplete: () => startBtn.parentElement.classList.add('hidden') });
+                gsap.fromTo(ageSelection, { opacity: 0, y: 20, display: 'none' }, { opacity: 1, y: 0, display: 'grid', duration: 0.5, delay: 0.3 });
+            });
+
+            ageCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const age = card.dataset.age;
+                    if (age === '5-7') {
+                        gsap.to(ageSelection, { opacity: 0, duration: 0.3, onComplete: () => ageSelection.classList.add('hidden') });
+                        gsap.fromTo(view57, { opacity: 0, y: 20, display: 'none' }, { opacity: 1, y: 0, display: 'block', duration: 0.5, delay: 0.3 });
+                    } else {
+                        // Placeholder for other age groups
+                    }
+                });
+            });
+
+            gameModuleCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const game = card.dataset.game;
+                    loadGame(game);
+                    tl.play();
+                });
+            });
+
+            backToDashboardBtn.addEventListener('click', () => {
+                window.parent.postMessage({ type: 'DYSLEXISCAN_NAVIGATE', path: '/dashboard' }, window.location.origin);
+            });
+
+            const games = {
+                imposter: {
+                    challenges: [
+                        { grid: 4, chars: ['b', 'd'], imposter: 'd' },
+                        { grid: 6, chars: ['p', 'q'], imposter: 'q' },
+                        { grid: 10, chars: ['m', 'n', 'b', 'd'], imposter: () => ['n', 'd'][Math.floor(Math.random() * 2)] },
+                    ],
+                    currentState: {}
+                },
+                robot: {
+                    challenges: [
+                        { word: 'CAT', phonemes: ['C', 'A', 'T'], image: 'https://placekitten.com/300/300' },
+                        { word: 'FROG', phonemes: ['F', 'R', 'O', 'G'], image: 'https://i.natgeofe.com/n/9d189c17-756a-4a2e-9963-473d36e2f737/01-frog-week-2020-set-1_square.jpg' },
+                        { word: 'STREET', phonemes: ['S', 'T', 'R', 'EE', 'T'], image: 'https://images.unsplash.com/photo-1593504446333-2d3989f33b9b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=500&q=60' }
+                    ],
+                    currentState: {}
+                },
+                rhyme: {
+                    challenges: [
+                        { word: 'Cat', options: ['Hat', 'Dog', 'Sun'], answer: 'Hat' },
+                        { word: 'Boat', options: ['Goat', 'Boot', 'Bat'], answer: 'Goat' },
+                        { word: 'Apple', options: ['Chapel', 'Table', 'Purple'], answer: 'Chapel' }
+                    ],
+                    currentState: {}
+                }
+            };
+
+            function loadGame(game) {
+                if (game === 'imposter') {
+                    startImposterGame();
+                } else if (game === 'robot') {
+                    startRobotSpeakGame();
+                } else if (game === 'rhyme') {
+                    startRhymeSelectorGame();
+                } else {
+                    gameContent.innerHTML = `<h2 class="text-3xl text-center">Loading ${game.replace('-', ' ')}...</h2>`;
+                }
+            }
+
+            function startRhymeSelectorGame() {
+                rhymeSelectorGameConfig.currentState = { challengeIndex: 0 };
+                loadRhymeSelectorChallenge(0);
+            }
+
+            function loadRhymeSelectorChallenge(index) {
+                const challenge = rhymeSelectorGameConfig.challenges[index];
+                if (!challenge) {
+                    gameContent.innerHTML = `<h2 class="text-3xl text-center">Rhyme Selector Complete!</h2>`;
+                    return;
+                }
+
+                gameContent.innerHTML = `
+                    <div class="text-center">
+                        <h3 class="text-2xl">Rhyme Selector: Challenge ${index + 1}</h3>
+                        <p class="text-gray-400">Which word rhymes with...</p>
+                        <div class="my-8 text-5xl font-bold text-cyan-300">${challenge.word}</div>
+                        <div id="rhyme-options" class="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                            ${challenge.options.map(opt => `<button class="p-4 glass-card text-2xl hover:bg-cyan-600 transition-colors" data-option="${opt}">${opt}</button>`).join('')}
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('rhyme-options').addEventListener('click', e => {
+                    if (e.target.dataset.option) {
+                        checkRhymeAnswer(e.target.dataset.option === challenge.answer, e.target);
+                    }
+                });
+            }
+
+            function checkRhymeAnswer(isCorrect, element) {
+                // Disable all buttons after a selection
+                document.querySelectorAll('#rhyme-options button').forEach(btn => btn.disabled = true);
+
+                if (isCorrect) {
+                    element.classList.add('bg-green-500');
+                } else {
+                    element.classList.add('bg-red-500');
+                }
+
+                setTimeout(loadNextRhymeSelectorChallenge, 1000);
+            }
+
+            function loadNextRhymeSelectorChallenge() {
+                rhymeSelectorGameConfig.currentState.challengeIndex++;
+                loadRhymeSelectorChallenge(rhymeSelectorGameConfig.currentState.challengeIndex);
+            }
+
+            function startRobotSpeakGame() {
+                robotSpeakGameConfig.currentState = { challengeIndex: 0 };
+                loadRobotSpeakChallenge(0);
+            }
+
+            function loadRobotSpeakChallenge(index) {
+                const challenge = robotSpeakGameConfig.challenges[index];
+                if (!challenge) {
+                    gameContent.innerHTML = `<h2 class="text-3xl text-center">Robot Speak Complete!</h2>`;
+                    return;
+                }
+
+                gameContent.innerHTML = `
+                    <div class="text-center">
+                        <h3 class="text-2xl">Robot Speak: Challenge ${index + 1}</h3>
+                        <p class="text-gray-400">Listen to the sounds and guess the word.</p>
+                        <div id="robot-image-card" class="relative w-64 h-64 mx-auto my-4 rounded-lg overflow-hidden">
+                            <img src="${challenge.image}" class="w-full h-full object-cover filter blur-xl" id="robot-image">
+                            <div id="robot-word" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-4xl font-bold opacity-0 transition-opacity">
+                                ${challenge.word}
+                            </div>
+                        </div>
+                        <div>
+                            <button id="hear-sound-btn" class="px-6 py-2 rounded-full text-white font-semibold btn-glow">Hear Sound</button>
+                            <button id="reveal-btn" class="px-6 py-2 rounded-full text-white font-semibold bg-gray-600 ml-4">Reveal</button>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('hear-sound-btn').addEventListener('click', () => {
+                    speakPhonemes(challenge.phonemes);
+                });
+
+                document.getElementById('reveal-btn').addEventListener('click', () => {
+                    document.getElementById('robot-image').classList.remove('blur-xl');
+                    document.getElementById('robot-word').style.opacity = 1;
+                    this.disabled = true;
+                    setTimeout(loadNextRobotSpeakChallenge, 2000);
+                });
+            }
+
+            function speakPhonemes(phonemes) {
+                const synth = window.speechSynthesis;
+                phonemes.forEach((phoneme, i) => {
+                    const utterance = new SpeechSynthesisUtterance(phoneme);
+                    utterance.rate = 0.8;
+                    setTimeout(() => synth.speak(utterance), i * 500);
+                });
+            }
+
+            function loadNextRobotSpeakChallenge() {
+                robotSpeakGameConfig.currentState.challengeIndex++;
+                loadRobotSpeakChallenge(robotSpeakGameConfig.currentState.challengeIndex);
+            }
+
+            function startImposterGame() {
+                imposterGameConfig.currentState = { challengeIndex: 0, timer: null, startTime: 0, alerts: 0, accuracy: [], speed: [] };
+                loadImposterChallenge(0);
+            }
+
+            function loadImposterChallenge(index) {
+                const challenge = imposterGameConfig.challenges[index];
+                if (!challenge) {
+                    showDiagnosticSummary();
+                    return;
+                }
+
+                const imposter = typeof challenge.imposter === 'function' ? challenge.imposter() : challenge.imposter;
+                const regularChar = challenge.chars.find(c => c !== imposter);
+
+                let gridItems = Array(challenge.grid * challenge.grid).fill(regularChar);
+                const imposterIndex = Math.floor(Math.random() * gridItems.length);
+                gridItems[imposterIndex] = imposter;
+
+                gameContent.innerHTML = `
+                    <div class="text-center mb-4">
+                        <h3 class="text-2xl">Find the Imposter: Challenge ${index + 1}</h3>
+                        <p class="text-gray-400">Find the letter that is different from the others.</p>
+                    </div>
+                    <div id="imposter-grid" class="grid gap-4 justify-center" style="grid-template-columns: repeat(${challenge.grid}, 1fr); font-size: clamp(1rem, 5vw / ${challenge.grid}, 2rem);">
+                        ${gridItems.map((char, i) => `<div class="w-12 h-12 flex items-center justify-center bg-gray-800 rounded-lg cursor-pointer hover:bg-cyan-600 transition-colors" data-char="${char}" data-index="${i}">${char}</div>`).join('')}
+                    </div>
+                `;
+
+                startChallengeTimer();
+
+                document.getElementById('imposter-grid').addEventListener('click', (e) => {
+                    if (e.target.dataset.char) {
+                        checkImposterAnswer(e.target.dataset.char === imposter, e.target);
+                    }
+                });
+            }
+
+            function startChallengeTimer() {
+                clearTimeout(imposterGameConfig.currentState.timer);
+                imposterGameConfig.currentState.startTime = Date.now();
+                imposterGameConfig.currentState.timer = setTimeout(() => {
+                    imposterGameConfig.currentState.alerts++;
+                    imposterGameConfig.currentState.accuracy.push(0); // 0 for timeout
+                    imposterGameConfig.currentState.speed.push(10);
+                    // Visual feedback for timeout can be added here
+                    loadNextImposterChallenge();
+                }, 10000); // 10 seconds
+            }
+
+            function checkImposterAnswer(isCorrect, element) {
+                clearTimeout(imposterGameConfig.currentState.timer);
+                const timeTaken = (Date.now() - imposterGameConfig.currentState.startTime) / 1000;
+                imposterGameConfig.currentState.speed.push(timeTaken);
+
+                if (isCorrect) {
+                    element.classList.add('bg-green-500');
+                    imposterGameConfig.currentState.accuracy.push(1); // 1 for correct
+                } else {
+                    element.classList.add('bg-red-500');
+                    imposterGameConfig.currentState.alerts++;
+                    imposterGameConfig.currentState.accuracy.push(0); // 0 for incorrect
+                }
+
+                setTimeout(loadNextImposterChallenge, 500);
+            }
+
+            function loadNextImposterChallenge() {
+                imposterGameConfig.currentState.challengeIndex++;
+                loadImposterChallenge(imposterGameConfig.currentState.challengeIndex);
+            }
+
+            function showDiagnosticSummary() {
+                const { accuracy, speed, alerts } = imposterGameConfig.currentState;
+                const avgAccuracy = (accuracy.reduce((a, b) => a + b, 0) / accuracy.length) * 100;
+                const avgSpeed = speed.reduce((a, b) => a + b, 0) / speed.length;
+
+                gameContent.innerHTML = `
+                    <div class="text-center">
+                        <h2 class="text-3xl font-bold mb-4">Diagnostic Summary</h2>
+                        <div class="flex justify-around items-center">
+                            <div>
+                                <p class="text-xl">Accuracy: <span class="font-bold text-cyan-300">${avgAccuracy.toFixed(1)}%</span></p>
+                                <p class="text-xl">Avg. Speed: <span class="font-bold text-cyan-300">${avgSpeed.toFixed(2)}s</span></p>
+                                <p class="text-xl">Screening Alerts: <span class="font-bold ${alerts > 0 ? 'text-red-500' : 'text-green-500'}">${alerts}</span></p>
+                            </div>
+                            <div style="width: 300px; height: 300px;">
+                                <canvas id="results-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const ctx = document.getElementById('results-chart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Visual Discrimination', 'Processing Speed', 'Attention Focus'],
+                        datasets: [{
+                            label: 'Performance Metrics',
+                            data: [
+                                avgAccuracy,
+                                100 - (avgSpeed * 10), // Scale speed inversely
+                                100 - (alerts * 33) // Scale alerts
+                            ],
+                            backgroundColor: 'rgba(0, 242, 254, 0.2)',
+                            borderColor: 'rgba(0, 242, 254, 1)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            r: {
+                                angleLines: { color: 'rgba(255, 255, 255, 0.3)' },
+                                grid: { color: 'rgba(255, 255, 255, 0.3)' },
+                                pointLabels: { color: '#FFF', font: { size: 14 } },
+                                suggestedMin: 0,
+                                suggestedMax: 100
+                            }
+                        },
+                        plugins: {
+                            legend: { labels: { color: 'white' } }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screening Suite (5-7 Years) - DyslexiScan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a; /* Deep dark blue */
+            color: #e2e8f0;
+            font-family: 'Roboto', sans-serif;
+        }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5); /* Semi-transparent dark slate */
+            backdrop-filter: blur(12px);
+            border-radius: 1rem;
+            border: 1px solid rgba(51, 65, 85, 0.7);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 0 25px rgba(34, 211, 238, 0.3);
+            border-color: rgba(34, 211, 238, 0.5);
+        }
+        .btn-primary {
+            background-color: #22d3ee; /* Neon primary accent */
+            color: #0f172a;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover { box-shadow: 0 0 20px #22d3ee; }
+        #assessment-mode { transition: opacity 0.5s ease-in-out; }
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #22d3ee, transparent);
+            animation: scan 2s infinite linear;
+            opacity: 0;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Main Dashboard -->
+    <main id="dashboard" class="min-h-screen flex flex-col items-center justify-center p-8 relative">
+        <a href="games.html" class="absolute top-6 left-6 text-cyan-400 hover:text-cyan-200 transition">&larr; Back to Age Selection</a>
+        <div class="text-center mb-12">
+            <h1 class="font-orbitron text-4xl md:text-5xl font-bold tracking-wider text-cyan-300">Game Modules: 5-7 Years</h1>
+            <p class="text-slate-400 mt-2">Select a screening module to begin assessment.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+            <!-- Game Module 1 -->
+            <div class="glass-card p-8 text-center cursor-pointer" data-game="imposter">
+                <h2 class="font-orbitron text-2xl font-bold text-white">Find the Imposter</h2>
+                <p class="text-slate-400 mt-2">Tests Visual Discrimination & Letter Reversal</p>
+            </div>
+            <!-- Game Module 2 -->
+            <div class="glass-card p-8 text-center cursor-pointer" data-game="robot">
+                <h2 class="font-orbitron text-2xl font-bold text-white">Robot Speak</h2>
+                <p class="text-slate-400 mt-2">Tests Auditory Phonemic Blending</p>
+            </div>
+            <!-- Game Module 3 -->
+            <div class="glass-card p-8 text-center cursor-pointer" data-game="rhyme">
+                <h2 class="font-orbitron text-2xl font-bold text-white">Rhyme Selector</h2>
+                <p class="text-slate-400 mt-2">Tests Phonological Awareness</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Assessment Mode Overlay -->
+    <section id="assessment-mode" class="hidden fixed inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-8 z-50">
+        <div id="game-container" class="w-full max-w-4xl h-3/4 bg-slate-800/80 backdrop-filter backdrop-blur-lg rounded-2xl border border-slate-700 relative overflow-hidden">
+            <div class="scan-line"></div>
+            <button id="close-assessment" class="absolute top-4 right-4 text-2xl text-slate-400 hover:text-white">&times;</button>
+            <div id="game-content" class="w-full h-full flex items-center justify-center">
+                <!-- Game content will be dynamically injected here -->
+            </div>
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dashboard = document.getElementById('dashboard');
+            const assessmentMode = document.getElementById('assessment-mode');
+            const gameContainer = document.getElementById('game-container');
+            const gameContent = document.getElementById('game-content');
+            const closeAssessmentBtn = document.getElementById('close-assessment');
+            const scanLine = document.querySelector('.scan-line');
+
+                        // --- Sound Engine ---
+            // Uses the Web Audio API to generate simple tones for feedback without needing audio files.
+
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            function playSound(type) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+
+                if (type === 'correct') {
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+                } else if (type === 'incorrect') {
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                } else { // 'click'
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                }
+
+                oscillator.start(audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.2);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+
+                        // --- Game State Management ---
+            // A centralized object to track the current game, level, and results.
+
+            const GameState = {
+                activeGame: null,
+                currentLevel: 0,
+                results: {
+                    imposter: { speed: [], accuracy: [], slowProcessingCount: 0 },
+                    robot: { accuracy: [] },
+                    rhyme: { accuracy: [] }
+                },
+                timer: null,
+
+                reset(game) {
+                    this.activeGame = game;
+                    this.currentLevel = 0;
+                    if (this.results[game]) {
+                        this.results[game] = { speed: [], accuracy: [], slowProcessingCount: 0 };
+                    }
+                }
+            };
+
+                        // --- Game Definitions ---
+            // Each game object contains its levels and an `init` function to set up the UI.
+            const games = {
+                imposter: {
+                    levels: [
+                        { grid: 4, chars: ['b', 'd'], imposter: 'd' },
+                        { grid: 6, chars: ['p', 'q'], imposter: 'q' },
+                        { grid: 8, chars: ['u', 'n'], imposter: 'n' }
+                    ],
+                    init: function() {
+                        const level = this.levels[GameState.currentLevel];
+                        const imposter = level.imposter;
+                        const regularChar = level.chars.find(c => c !== imposter);
+                        let items = Array(level.grid * level.grid).fill(regularChar);
+                        const imposterIndex = Math.floor(Math.random() * items.length);
+                        items[imposterIndex] = imposter;
+
+                        gameContent.innerHTML = `
+                            <div class="w-full h-full flex flex-col items-center justify-center p-4">
+                                <h3 class="font-orbitron text-2xl mb-4">Find the Imposter - Level ${GameState.currentLevel + 1}</h3>
+                                <div class="grid gap-2 md:gap-4" style="grid-template-columns: repeat(${level.grid}, 1fr);">
+                                    ${items.map(char => `<div class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-slate-700 rounded-md text-2xl font-bold cursor-pointer hover:bg-cyan-500 transition-colors" data-char="${char}">${char}</div>`).join('')}
+                                </div>
+                            </div>`;
+
+                        const startTime = Date.now();
+                        GameState.timer = setTimeout(() => {
+                            GameState.results.imposter.slowProcessingCount++;
+                        }, 10000);
+
+                        gameContent.querySelectorAll('[data-char]').forEach(el => {
+                            el.addEventListener('click', () => {
+                                clearTimeout(GameState.timer);
+                                const timeTaken = (Date.now() - startTime) / 1000;
+                                GameState.results.imposter.speed.push(timeTaken);
+                                if (el.dataset.char === imposter) {
+                                    playSound('correct');
+                                    GameState.results.imposter.accuracy.push(1);
+                                    el.classList.add('bg-green-500');
+                                } else {
+                                    playSound('incorrect');
+                                    GameState.results.imposter.accuracy.push(0);
+                                    el.classList.add('bg-red-500');
+                                }
+                                setTimeout(nextLevel, 500);
+                            });
+                        });
+                    }
+                },
+                // Robot Speak and Rhyme Selector placeholders
+                robot: {
+                    levels: [
+                        { word: 'CAT', phonemes: ['C', 'A', 'T'], image: 'https://placekitten.com/400/400' },
+                        { word: 'FROG', phonemes: ['F', 'R', 'O', 'G'], image: 'https://i.natgeofe.com/n/9d189c17-756a-4a2e-9963-473d36e2f737/01-frog-week-2020-set-1_square.jpg' },
+                        { word: 'STOP', phonemes: ['S', 'T', 'O', 'P'], image: 'https://images.unsplash.com/photo-1572099606223-6e29545d0e3b?auto=format&fit=crop&w=400&q=80' }
+                    ],
+                    init: function() {
+                        const level = this.levels[GameState.currentLevel];
+                        gameContent.innerHTML = `
+                            <div class="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                                <h3 class="font-orbitron text-2xl mb-4">Robot Speak - Level ${GameState.currentLevel + 1}</h3>
+                                <div id="robot-image-card" class="w-64 h-64 bg-slate-700 rounded-lg relative mb-4 cursor-pointer">
+                                    <img src="${level.image}" class="w-full h-full object-cover rounded-lg filter blur-2xl transition-all duration-500" id="robot-image">
+                                    <div id="robot-word" class="absolute inset-0 flex items-center justify-center bg-black/50 text-5xl font-bold opacity-0 transition-opacity duration-500">${level.word}</div>
+                                </div>
+                                <button id="speak-btn" class="btn-primary px-6 py-3 rounded-lg text-xl mb-4">Play Sound</button>
+                                <div id="teacher-controls" class="hidden flex items-center gap-4">
+                                    <button id="correct-btn" class="bg-green-500 text-white px-6 py-2 rounded-lg">Correct</button>
+                                    <button id="incorrect-btn" class="bg-red-500 text-white px-6 py-2 rounded-lg">Incorrect</button>
+                                </div>
+                            </div>`;
+
+                        document.getElementById('speak-btn').addEventListener('click', () => {
+                            this.speak(level.phonemes);
+                        });
+
+                        document.getElementById('robot-image-card').addEventListener('click', () => {
+                            document.getElementById('robot-image').classList.remove('blur-2xl');
+                            document.getElementById('robot-word').classList.remove('opacity-0');
+                            document.getElementById('teacher-controls').classList.remove('hidden');
+                        });
+
+                        document.getElementById('correct-btn').addEventListener('click', () => {
+                            playSound('correct');
+                            GameState.results.robot.accuracy.push(1);
+                            nextLevel();
+                        });
+
+                        document.getElementById('incorrect-btn').addEventListener('click', () => {
+                            playSound('incorrect');
+                            GameState.results.robot.accuracy.push(0);
+                            nextLevel();
+                        });
+                    },
+                    speak: function(phonemes) {
+                        const synth = window.speechSynthesis;
+                        // Find a robotic voice
+                        const voice = synth.getVoices().find(v => v.name.includes('Google US English') || v.name.includes('Daniel'));
+                        const utterance = new SpeechSynthesisUtterance(phonemes.join(' '));
+                        if (voice) utterance.voice = voice;
+                        utterance.pitch = 0.1;
+                        utterance.rate = 0.6;
+                        synth.speak(utterance);
+                    }
+                },
+                rhyme: {
+                    levels: [
+                        { word: 'CAT', options: ['HAT', 'DOG', 'BOX'], answer: 'HAT' },
+                        { word: 'SHEEP', options: ['SLEEP', 'SHIP', 'SHOP'], answer: 'SLEEP' },
+                        { word: 'CAKE', options: ['SNAKE', 'COKE', 'COOK'], answer: 'SNAKE' }
+                    ],
+                    init: function() {
+                        const level = this.levels[GameState.currentLevel];
+                        gameContent.innerHTML = `
+                            <div class="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                                <h3 class="font-orbitron text-2xl mb-2">Rhyme Selector - Level ${GameState.currentLevel + 1}</h3>
+                                <p class="text-slate-400 mb-8">Which word rhymes with...</p>
+                                <div class="mb-8 text-6xl font-bold text-cyan-300">${level.word}</div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
+                                    ${level.options.map(opt => `<button class="btn-primary p-4 rounded-lg text-2xl" data-option="${opt}">${opt}</button>`).join('')}
+                                </div>
+                            </div>`;
+
+                        gameContent.querySelectorAll('[data-option]').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const isCorrect = btn.dataset.option === level.answer;
+                                if (isCorrect) {
+                                    playSound('correct');
+                                    GameState.results.rhyme.accuracy.push(1);
+                                    btn.classList.add('bg-green-500');
+                                } else {
+                                    playSound('incorrect');
+                                    GameState.results.rhyme.accuracy.push(0);
+                                    btn.classList.add('bg-red-500');
+                                }
+                                // Disable all buttons
+                                gameContent.querySelectorAll('[data-option]').forEach(b => b.disabled = true);
+                                setTimeout(nextLevel, 1000);
+                            });
+                        });
+                    }
+                }
+            };
+
+                        // --- Game Flow Control ---
+            function nextLevel() {
+                GameState.currentLevel++;
+                const game = games[GameState.activeGame];
+                if (GameState.currentLevel < (game.levels ? game.levels.length : 3)) {
+                    loadGame(GameState.activeGame);
+                } else {
+                    showReport();
+                }
+            }
+
+            function showReport() {
+                const game = GameState.activeGame;
+                const results = GameState.results[game];
+                const accuracy = (results.accuracy.reduce((a, b) => a + b, 0) / results.accuracy.length) * 100;
+
+                let reportHTML = `
+                    <div class="text-center text-white p-8 animate-fade-in">
+                        <h2 class="font-orbitron text-3xl mb-4">Neural Diagnostic Report</h2>
+                        <p class="text-xl mb-4">Game: <span class="font-bold text-cyan-300">${game.charAt(0).toUpperCase() + game.slice(1)}</span></p>
+                        <p class="text-2xl mb-2">Accuracy: <span class="font-bold text-cyan-300">${accuracy.toFixed(1)}%</span></p>
+                `;
+
+                if (game === 'imposter') {
+                    const avgSpeed = results.speed.reduce((a, b) => a + b, 0) / results.speed.length;
+                    reportHTML += `
+                        <p>Average Speed: <strong>${avgSpeed.toFixed(2)}s</strong></p>
+                        <p>Slow Processing Flags: <strong class="${results.slowProcessingCount > 0 ? 'text-red-400' : 'text-green-400'}">${results.slowProcessingCount}</strong></p>
+                    `;
+                }
+
+                reportHTML += `<button id="finish-btn" class="mt-8 btn-primary px-6 py-2 rounded-lg">Finish Assessment</button></div>`;
+                gameContent.innerHTML = reportHTML;
+                document.getElementById('finish-btn').addEventListener('click', closeAssessment);
+            }
+
+            function loadGame(gameName) {
+                scanLine.style.opacity = '1';
+                scanLine.style.animation = 'scan 2s infinite linear';
+                setTimeout(() => {
+                    games[gameName].init();
+                    scanLine.style.opacity = '0';
+                    scanLine.style.animation = 'none';
+                }, 1000);
+            }
+
+                        // --- UI Event Listeners ---
+            // Handles clicks on the main dashboard to start games and close the assessment mode.
+
+            document.querySelectorAll('[data-game]').forEach(card => {
+                card.addEventListener('click', () => {
+                    playSound('click');
+                    const gameName = card.dataset.game;
+                    GameState.reset(gameName);
+                    assessmentMode.classList.remove('hidden');
+                    assessmentMode.classList.add('flex');
+                    dashboard.classList.add('opacity-0', 'pointer-events-none');
+                    loadGame(gameName);
+                });
+            });
+
+            function closeAssessment() {
+                playSound('click');
+                assessmentMode.classList.add('hidden');
+                assessmentMode.classList.remove('flex');
+                dashboard.classList.remove('opacity-0', 'pointer-events-none');
+                gameContent.innerHTML = '';
+            }
+
+            closeAssessmentBtn.addEventListener('click', closeAssessment);
+        });
+    </script>
+
+</body>
+</html>

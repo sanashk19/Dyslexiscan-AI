@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuro-Elite Professional Diagnostic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;500&display=swap');
+        body { background-color: #020617; color: #f8fafc; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+        .hud-pane { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(16, 185, 129, 0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .hud-pane:hover { border-color: #10b981; transform: scale(1.02); }
+        .video-feed { transform: scaleX(-1); filter: grayscale(1) contrast(1.5); border: 1px solid #10b981; border-radius: 8px; }
+        .neon-text { color: #10b981; text-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }
+        .amber-text { color: #f59e0b; text-shadow: 0 0 12px rgba(245, 158, 11, 0.6); }
+        .saccade-orb { cursor: pointer; animation: pulse 1s infinite alternate; }
+        @keyframes pulse { from { transform: scale(0.9); opacity: 0.8; } to { transform: scale(1.1); opacity: 1; } }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col p-8">
+
+    <header class="flex justify-between items-end mb-10 border-b border-emerald-900/40 pb-6">
+        <div>
+            <h1 class="text-2xl font-bold font-['Orbitron'] neon-text tracking-widest">NEURO-ELITE DIAGNOSTIC</h1>
+            <p class="text-[10px] uppercase tracking-[0.3em] opacity-50">Clinical Grade Performance Suite v3.0</p>
+        </div>
+        <div id="cam-box" class="w-40 h-28 relative">
+            <video id="webcam" autoplay muted playsinline class="video-feed w-full h-full object-cover"></video>
+            <div class="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+        </div>
+    </header>
+
+    <main id="main-content" class="flex-grow flex items-center justify-center">
+        <div id="selection-grid" class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
+            <div onclick="startOcular()" class="hud-pane p-8 rounded-2xl cursor-pointer">
+                <div class="text-emerald-500 mb-6 text-5xl">🔭</div>
+                <h3 class="font-['Orbitron'] text-lg font-bold mb-2">OCULAR TRACING</h3>
+                <p class="text-[10px] text-emerald-400 mb-4 uppercase font-bold">Benefit: Saccadic Latency</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Measures visual processing speed. Tracks time to fixate on jumping tactical orbs.</p>
+            </div>
+            <div onclick="startStroop()" class="hud-pane p-8 rounded-2xl cursor-pointer border-amber-500/20">
+                <div class="text-amber-500 mb-6 text-5xl">🗣️</div>
+                <h3 class="font-['Orbitron'] text-lg font-bold mb-2">STROOP SIGNAL</h3>
+                <p class="text-[10px] text-amber-400 mb-4 uppercase font-bold">Benefit: Inhibition Delay</p>
+                <p class="text-xs text-slate-400 leading-relaxed">SAY INK COLOR LOUDER. Measures ability to block conflicting visual linguistic data.</p>
+            </div>
+            <div onclick="startOrtho()" class="hud-pane p-8 rounded-2xl cursor-pointer border-blue-500/20">
+                <div class="text-blue-500 mb-6 text-5xl">📑</div>
+                <h3 class="font-['Orbitron'] text-lg font-bold mb-2">ORTHO-LOGIC</h3>
+                <p class="text-[10px] text-blue-400 mb-4 uppercase font-bold">Benefit: Phonological Decoding</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Advanced academic homophone screening. Tests lexical retrieval under logic stress.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const stats = { ocular: [], stroop: [], ortho: {correct: 0, times: []} };
+
+        let sMicStream = null;
+        let sMicAudioContext = null;
+        let sMicRaf = null;
+        let sHadVoice = false;
+
+        function stopStroopMic() {
+            if (sMicRaf) {
+                cancelAnimationFrame(sMicRaf);
+                sMicRaf = null;
+            }
+            if (sMicStream) {
+                sMicStream.getTracks().forEach(t => t.stop());
+                sMicStream = null;
+            }
+            if (sMicAudioContext) {
+                try { sMicAudioContext.close(); } catch (_) {}
+                sMicAudioContext = null;
+            }
+        }
+
+        async function startStroopMicLevel(barId, statusId) {
+            stopStroopMic();
+            sHadVoice = false;
+            const barEl = document.getElementById(barId);
+            const statusEl = document.getElementById(statusId);
+            if (statusEl) statusEl.textContent = 'Listening… say the INK color clearly';
+
+            sMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const AC = window.AudioContext || window.webkitAudioContext;
+            sMicAudioContext = new AC();
+            const src = sMicAudioContext.createMediaStreamSource(sMicStream);
+            const analyser = sMicAudioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            src.connect(analyser);
+
+            const data = new Uint8Array(analyser.fftSize);
+            const tick = () => {
+                analyser.getByteTimeDomainData(data);
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    const v = (data[i] - 128) / 128;
+                    sum += v * v;
+                }
+                const rms = Math.sqrt(sum / data.length);
+                if (rms > 0.02) sHadVoice = true;
+                const pct = Math.max(0, Math.min(100, Math.round(rms * 4500)));
+                if (barEl) barEl.style.width = pct + '%';
+                if (statusEl) statusEl.textContent = rms > 0.02 ? 'Voice detected' : 'Listening… say the INK color clearly';
+                sMicRaf = requestAnimationFrame(tick);
+            };
+            tick();
+        }
+
+        async function initCam() {
+            try { const s = await navigator.mediaDevices.getUserMedia({video:true}); document.getElementById('webcam').srcObject=s; }
+            catch(e){ console.log("Cam error"); }
+        }
+        initCam();
+
+        function render(html) { document.getElementById('main-content').innerHTML = html; }
+
+        // --- OCULAR MODULE ---
+        let oCount = 0; let oTime = 0; let timerInterval;
+        function startOcular() {
+            render(`
+                <div class="w-full h-[500px] border border-emerald-500/20 rounded-3xl relative bg-slate-900/30 overflow-hidden">
+                    <div class="absolute top-8 right-8 hud-pane p-2 rounded-lg text-2xl font-mono neon-text" id="timer">0.0s</div>
+                    <div id="orb" onclick="hitOrb()" class="saccade-orb absolute w-16 h-16 bg-emerald-500 rounded-full shadow-[0_0_40px_#10b981] flex items-center justify-center text-[10px] font-bold text-black hidden">FIXATE</div>
+                    <div class="absolute bottom-4 w-full text-center text-[10px] opacity-40 uppercase tracking-widest">Targeting Saccadic Rhythms...</div>
+                </div>
+            `);
+            let startTime = Date.now();
+            timerInterval = setInterval(() => {
+                document.getElementById('timer').innerText = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+            }, 100);
+            nextOrb();
+        }
+        function nextOrb() {
+            if(oCount >= 8) { clearInterval(timerInterval); finishModule("Ocular Pursuit", `${(stats.ocular.reduce((a,b)=>a+b)/8).toFixed(0)}ms Latency`); return; }
+            const orb = document.getElementById('orb');
+            orb.style.display = 'none';
+            setTimeout(() => {
+                orb.style.left = (10 + Math.random()*80)+'%';
+                orb.style.top = (10 + Math.random()*80)+'%';
+                orb.style.display = 'flex';
+                oTime = Date.now();
+            }, 700);
+        }
+        function hitOrb() { stats.ocular.push(Date.now()-oTime); oCount++; nextOrb(); }
+
+        // --- STROOP MODULE ---
+        let sCount = 0;
+        const cNames = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
+        const cHex = {'RED':'#f87171', 'BLUE':'#60a5fa', 'GREEN':'#4ade80', 'YELLOW':'#fbbf24'};
+        
+        let sTime = 0;
+        function startStroop() {
+            if(sCount >= 5) { 
+                const accuracy = stats.stroop.filter(x => x.correct).length;
+                const avgTime = stats.stroop.reduce((acc, cur) => acc + cur.time, 0) / stats.stroop.length;
+                finishModule("Stroop Signal", `Accuracy: ${accuracy}/5, Avg Time: ${avgTime.toFixed(0)}ms`); 
+                return; 
+            }
+            const ink = cNames[Math.floor(Math.random()*4)];
+            const word = cNames[Math.floor(Math.random()*4)];
+            render(`
+                <div class="text-center relative">
+                     <div class="absolute top-8 right-8 hud-pane p-2 rounded-lg text-2xl font-mono neon-text" id="timer">0.0s</div>
+                    <p class="amber-text text-lg font-bold mb-4 uppercase">Say ink color louder color game</p>
+                    <h2 class="text-9xl font-black mb-16" style="color:${cHex[ink]}">${word}</h2>
+                    <div id="s-feedback" class="h-8 mb-8 text-xl font-bold"></div>
+                    <button id="mic-btn" onclick="listen('${ink}')" class="px-14 py-6 bg-emerald-600 rounded-full font-bold hover:bg-emerald-500 shadow-xl shadow-emerald-900/40">🎤 ACTIVATE MICROPHONE</button>
+                    <div style="margin-top: 18px; height: 10px; background: rgba(148,163,184,0.35); border-radius: 999px; overflow: hidden;">
+                        <div id="s-mic-bar" style="height: 100%; width: 0%; background: #10b981; transition: width 80ms linear;"></div>
+                    </div>
+                    <div id="s-mic-status" style="margin-top: 10px; font-size: 12px; color: rgba(148,163,184,0.9);"></div>
+                </div>
+            `);
+            sTime = Date.now();
+            timerInterval = setInterval(() => {
+                document.getElementById('timer').innerText = ((Date.now() - sTime) / 1000).toFixed(1) + 's';
+            }, 100);
+        }
+        function listen(goal) {
+            const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const micBtn = document.getElementById('mic-btn');
+            const feedbackEl = document.getElementById('s-feedback');
+            if(!Rec) {
+                if (feedbackEl) feedbackEl.innerHTML = `<span class="text-red-500">✗ Speech recognition not supported in this browser.</span>`;
+                return;
+            }
+            const r = new Rec();
+            if (micBtn) micBtn.innerText = "LISTENING...";
+
+            r.lang = 'en-US';
+            r.interimResults = false;
+            r.maxAlternatives = 1;
+
+            const cleanup = () => {
+                stopStroopMic();
+            };
+
+            r.onend = () => {
+                cleanup();
+                if (micBtn) micBtn.innerText = "🎤 ACTIVATE MICROPHONE";
+            };
+
+            r.onspeechend = () => {
+                try { r.stop(); } catch (_) {}
+            };
+
+            r.onnomatch = () => {
+                if (feedbackEl) feedbackEl.innerHTML = `<span class="text-red-500">✗ No speech match detected. Try again.</span>`;
+                cleanup();
+            };
+
+            r.onerror = () => {
+                const err = arguments && arguments[0] && arguments[0].error ? arguments[0].error : 'unknown';
+                if (sHadVoice) {
+                    if (feedbackEl) {
+                        feedbackEl.innerHTML = `
+                            <div class="text-amber-400">⚠ Voice detected, but speech recognition failed (${err}). This can happen if the speech service is offline/blocked.</div>
+                            <button onclick="clearInterval(timerInterval); sCount++; startStroop();" class="mt-4 px-8 py-3 bg-amber-500 text-slate-900 rounded-full font-bold">Continue (Demo)</button>
+                        `;
+                    }
+                } else {
+                    if (feedbackEl) feedbackEl.innerHTML = `<span class="text-red-500">✗ Mic error or no speech detected (${err}). Try again.</span>`;
+                }
+                cleanup();
+            };
+
+            ;(async () => {
+                try {
+                    await startStroopMicLevel('s-mic-bar', 's-mic-status');
+                } catch (e) {
+                    if (feedbackEl) feedbackEl.innerHTML = `<span class="text-red-500">✗ Microphone access blocked. Please allow microphone and try again.</span>`;
+                    cleanup();
+                    return;
+                }
+
+                try {
+                    r.start();
+                } catch (e) {
+                    if (feedbackEl) feedbackEl.innerHTML = `<span class="text-red-500">✗ Unable to start speech recognition. Try again.</span>`;
+                    cleanup();
+                }
+            })();
+            r.onresult = (e) => {
+                const h = e.results[0][0].transcript.toUpperCase();
+                const ok = h.includes(goal);
+                stats.stroop.push({correct: ok, time: Date.now() - sTime});
+                document.getElementById('s-feedback').innerHTML = ok ? `<span class="text-emerald-400">✓ CORRECT: ${h}</span>` : `<span class="text-red-500">✗ INCORRECT: Heard ${h}</span>`;
+                clearInterval(timerInterval);
+                setTimeout(() => { sCount++; startStroop(); }, 1500);
+                cleanup();
+            };
+        }
+
+        // --- ORTHO MODULE ---
+        const oQs = [
+            {q:"The wind [____] the leaves away.", a:"BLEW", o:["BLUE","BLEW"]},
+            {q:"He is the [____] to the throne.", a:"HEIR", o:["AIR","HEIR"]},
+            {q:"I need to buy [____] for the cake.", a:"FLOUR", o:["FLOUR","FLOWER"]},
+            {q:"The [____] of the school is nice.", a:"PRINCIPAL", o:["PRINCIPLE","PRINCIPAL"]},
+            {q:"She was [____] about her success.", a:"DISCREET", o:["DISCREET","DISCRETE"]}
+        ];
+        let qIdx = 0;
+        let oTimeStart = 0;
+        function startOrtho() {
+            if(qIdx >= 5) { 
+                const avgTime = stats.ortho.times.reduce((a, b) => a + b, 0) / stats.ortho.times.length;
+                finishModule("Ortho-Logic", `Score: ${stats.ortho.correct}/5, Avg Time: ${(avgTime / 1000).toFixed(2)}s`); 
+                return; 
+            }
+            const itm = oQs[qIdx];
+            render(`
+                <div class="text-center max-w-2xl relative">
+                     <div class="absolute top-8 right-8 hud-pane p-2 rounded-lg text-2xl font-mono neon-text" id="timer">0.0s</div>
+                    <h2 class="text-3xl font-bold mb-12">${itm.q}</h2>
+                    <div class="grid grid-cols-2 gap-8">
+                        ${itm.o.map(opt => `<button onclick="ansOrtho('${opt}','${itm.a}')" class="hud-pane p-12 rounded-3xl font-bold text-2xl hover:bg-emerald-500/10">${opt}</button>`).join('')}
+                    </div>
+                </div>
+            `);
+            oTimeStart = Date.now();
+             timerInterval = setInterval(() => {
+                document.getElementById('timer').innerText = ((Date.now() - oTimeStart) / 1000).toFixed(1) + 's';
+            }, 100);
+        }
+        function ansOrtho(c, a) { 
+            if(c===a) stats.ortho.correct++; 
+            stats.ortho.times.push(Date.now() - oTimeStart);
+            qIdx++; 
+            clearInterval(timerInterval);
+            startOrtho(); 
+        }
+
+        function finishModule(name, score) {
+            render(`
+                <div class="hud-pane p-16 rounded-[40px] text-center max-w-lg border-emerald-500">
+                    <h2 class="neon-text font-['Orbitron'] text-2xl mb-4">MODULE SYNCHRONIZED</h2>
+                    <p class="text-gray-400 mb-2 uppercase text-xs tracking-widest">${name}</p>
+                    <p class="text-4xl font-black text-white mb-12">${score}</p>
+                    <button onclick="location.reload()" class="w-full py-5 bg-emerald-600 rounded-2xl font-bold mb-4 uppercase">Return to Dashboard</button>
+                    <button onclick="genPDF()" class="text-xs text-emerald-500/50 hover:text-emerald-500 underline uppercase font-bold tracking-widest">Generate Final Clinical Report</button>
+                </div>
+            `);
+        }
+
+        function genPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const blue = [2, 6, 23]; const green = [16, 185, 129];
+
+            // Professional Styling
+            doc.setFillColor(blue[0], blue[1], blue[2]); doc.rect(0,0,210,297,'F');
+            doc.setTextColor(green[0], green[1], green[2]); doc.setFontSize(26);
+            doc.text("NEURO-PERFORMANCE REPORT", 20, 40);
+            
+            doc.setFontSize(10); doc.setTextColor(100, 100, 100);
+            doc.text(`ASSESSMENT DATE: ${new Date().toLocaleString()}`, 20, 52);
+            doc.setDrawColor(green[0], green[1], green[2]); doc.line(20, 58, 190, 58);
+
+            doc.setTextColor(255, 255, 255); doc.setFontSize(14);
+            
+            // 1. Ocular
+            const oAvg = stats.ocular.length ? (stats.ocular.reduce((a,b)=>a+b)/stats.ocular.length).toFixed(0) : 0;
+            doc.text(`1. Saccadic Processing Latency: ${oAvg}ms`, 20, 80);
+            doc.setFontSize(10); doc.setTextColor(150, 150, 150);
+            doc.text(`Clinical Status: ${oAvg < 350 ? 'Optimal' : 'Significant Latency Delay'}`, 20, 87);
+
+            // 2. Stroop
+            const sScore = stats.stroop.filter(x=>x.correct).length;
+            const sTimeAvg = stats.stroop.length ? (stats.stroop.reduce((a,b)=>a + b.time,0)/stats.stroop.length).toFixed(0) : 0;
+            doc.setTextColor(255, 255, 255); doc.setFontSize(14);
+            doc.text(`2. Inhibition Control Score: ${sScore}/5 (${sTimeAvg}ms avg)`, 20, 110);
+            doc.setFontSize(10); doc.setTextColor(150, 150, 150);
+            doc.text(`Interference Risk: ${sScore >= 4 ? 'Minimal' : 'Elevated Persistence'}`, 20, 117);
+
+            // 3. Ortho
+            const oTimeAvg = stats.ortho.times.length ? (stats.ortho.times.reduce((a,b)=>a+b,0)/stats.ortho.times.length/1000).toFixed(2) : 0;
+            doc.setTextColor(255, 255, 255); doc.setFontSize(14);
+            doc.text(`3. Orthographic Decoding Accuracy: ${stats.ortho.correct}/5 (${oTimeAvg}s avg)`, 20, 140);
+            doc.setFontSize(10); doc.setTextColor(150, 150, 150);
+            doc.text(`Phonological Status: ${stats.ortho.correct === 5 ? 'Standard' : 'Markers of Dyslexic Patterning'}`, 20, 147);
+
+            // Risk Matrix
+            doc.setFillColor(30, 41, 59); doc.rect(20, 170, 170, 40, 'F');
+            doc.setTextColor(green[0], green[1], green[2]); doc.setFontSize(12);
+            doc.text("DIAGNOSTIC PROBABILITY SUMMARY:", 30, 182);
+            doc.setTextColor(255, 255, 255); doc.setFontSize(16);
+            const risk = (oAvg > 400 || sScore < 3 || stats.ortho.correct < 4 || sTimeAvg > 1500 || oTimeAvg > 5) ? "ELEVATED" : "LOW";
+            doc.text(`OVERALL RISK FACTOR: ${risk}`, 30, 195);
+
+            doc.save("NeuroElite_Professional_Report.pdf");
+        }
+    </script>
+</body>
+</html>

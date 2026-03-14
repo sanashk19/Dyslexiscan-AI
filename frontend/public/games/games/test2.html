@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dyslexiscan Pro | 3D Assessment Suite</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6C5CE7; /* Deep Indigo */
+            --secondary: #55E6C1; /* Soft Mint */
+            --dark: #2D3436;
+            --glass: rgba(255, 255, 255, 0.8);
+        }
+        body {
+            font-family: 'Lexend', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--dark);
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 50px 20px; }
+        
+        /* 3D Card Styling */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; perspective: 1000px; }
+        .card {
+            background: var(--glass); backdrop-filter: blur(10px); border-radius: 30px; padding: 40px;
+            text-align: center; transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d; border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05); cursor: pointer; position: relative;
+        }
+        .card:hover {
+            transform: translateY(-15px) rotateX(10deg) rotateY(-5deg);
+            box-shadow: 0 30px 60px rgba(108, 92, 231, 0.2);
+        }
+        .card h3 { font-size: 1.8rem; color: var(--primary); margin-bottom: 15px; transform: translateZ(50px); }
+        .card p { font-size: 1rem; color: #636e72; transform: translateZ(30px); }
+        .benefit-tag {
+            background: var(--secondary); color: #1B4332; padding: 6px 15px;
+            border-radius: 50px; font-size: 0.8rem; font-weight: bold; display: inline-block; margin-bottom: 20px;
+        }
+
+        /* Test Interface */
+        .test-view { display: none; background: white; border-radius: 40px; padding: 60px; text-align: center; box-shadow: 0 50px 100px rgba(0,0,0,0.1); }
+        .word-display { font-size: 6rem; font-weight: 800; color: var(--primary); letter-spacing: 10px; margin: 40px 0; }
+        .btn {
+            padding: 15px 40px; border: none; border-radius: 50px; font-weight: bold; cursor: pointer;
+            transition: 0.3s; font-size: 1rem; margin: 10px;
+        }
+        .btn-next { background: var(--primary); color: white; }
+        .btn-outline { border: 2px solid var(--primary); color: var(--primary); background: transparent; }
+
+        /* Form Overlay */
+        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100; justify-content: center; align-items: center; }
+        .modal { background: white; padding: 40px; border-radius: 30px; width: 90%; max-width: 500px; }
+        input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; font-family: 'Lexend'; }
+
+        .completed-badge { position: absolute; top: 20px; right: 20px; color: var(--secondary); font-size: 1.5rem; display: none; }
+    </style>
+</head>
+<body>
+<button class="btn btn-outline" style="position: fixed; top: 20px; left: 20px; z-index: 101;" onclick="window.parent.postMessage({ type: 'DYSLEXISCAN_NAVIGATE', path: '/dashboard' }, window.location.origin)" data-lang-key="back_to_dashboard">← Back to Dashboard</button>
+<button id="lang-toggle" class="btn btn-outline" style="position: fixed; top: 20px; right: 20px; z-index: 101;">Switch to हिन्दी</button>
+
+<div class="container">
+    <div id="landing-view">
+        <h1 style="text-align:center; font-size: 3rem; margin-bottom: 50px;" data-lang-key="page_title">Dyslexiscan Assessment</h1>
+        
+        <div class="card-grid">
+            <div class="card" onclick="startTest('z')">
+                <span id="badge-z" class="completed-badge">✓</span>
+                <div class="benefit-tag" data-lang-key="z_screener_tag">Phonological Core</div>
+                <h3 data-lang-key="z_screener_title">Z-Screener</h3>
+                <p data-lang-key="z_screener_desc">Analyzes nonsense word decoding to identify gaps in sound-letter mapping.</p>
+                <button class="btn btn-next" data-lang-key="take_test">Take Test</button>
+            </div>
+            <div class="card" onclick="startTest('g')">
+                <span id="badge-g" class="completed-badge">✓</span>
+                <div class="benefit-tag" data-lang-key="g_screener_tag">Fluency & Rate</div>
+                <h3 data-lang-key="g_screener_title">Grey Oral Fluency</h3>
+                <p data-lang-key="g_screener_desc">Measures reading speed and contextual accuracy under timed conditions.</p>
+                <button class="btn btn-next" data-lang-key="take_test">Take Test</button>
+            </div>
+            <div class="card" onclick="startTest('p')">
+                <span id="badge-p" class="completed-badge">✓</span>
+                <div class="benefit-tag" data-lang-key="p_screener_tag">Environmental Behavioral</div>
+                <h3 data-lang-key="p_screener_title">Parent Monitoring</h3>
+                <p data-lang-key="p_screener_desc">Clinical observation of 7 key home-based dyslexia indicators.</p>
+                <button class="btn btn-next" data-lang-key="take_survey">Take Survey</button>
+            </div>
+        </div>
+        
+        <div id="final-action" style="text-align:center; margin-top: 50px; display: none;">
+            <button class="btn btn-next" style="padding: 20px 60px; font-size: 1.4rem;" onclick="showModal()" data-lang-key="generate_dossier">GENERATE FULL CLINICAL DOSSIER</button>
+        </div>
+    </div>
+
+    <div id="test-screen" class="test-view">
+        <h2 id="test-title">Z-Screener</h2>
+        <div id="test-content">
+            <div class="word-display" id="display-word">VAB</div>
+            <div id="scoring-zone">
+                <button class="btn btn-outline" onclick="recordResult(0)">Incorrect</button>
+                <button class="btn btn-next" onclick="recordResult(1)">Correct Blend</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="info-modal" class="overlay">
+    <div class="modal">
+        <h3 data-lang-key="finalize_report">Finalize Clinical Report</h3>
+        <input type="text" id="sName" placeholder="Student Name" data-lang-key="student_name">
+        <input type="number" id="sAge" placeholder="Student Age" data-lang-key="student_age">
+        <input type="text" id="gName" placeholder="Guardian Name" data-lang-key="guardian_name">
+        <input type="tel" id="gPhone" placeholder="Phone Number" data-lang-key="phone_number">
+        <button class="btn btn-next" style="width:100%" onclick="downloadPDF()" data-lang-key="download_report">Download Official Report</button>
+    </div>
+</div>
+
+<script>
+    const { jsPDF } = window.jspdf;
+
+    let currentLang = 'en';
+    const translations = {
+        en: {
+            back_to_dashboard: '← Back to Dashboard',
+            page_title: 'Dyslexiscan Assessment',
+            z_screener_tag: 'Phonological Core',
+            z_screener_title: 'Z-Screener',
+            z_screener_desc: 'Tests nonsense word decoding, letter-sound mapping, and phonological awareness.',
+            take_test: 'Take Test',
+            g_screener_tag: 'Fluency & Rate',
+            g_screener_title: 'Grey Oral Fluency',
+            g_screener_desc: 'Measures reading speed and contextual accuracy under timed conditions.',
+            p_screener_tag: 'Environmental Behavioral',
+            p_screener_title: 'Parent Monitoring',
+            p_screener_desc: 'Clinical observation of 7 key home-based dyslexia indicators.',
+            take_survey: 'Take Survey',
+            generate_dossier: 'GENERATE FULL CLINICAL DOSSIER',
+            finalize_report: 'Finalize Clinical Report',
+            student_name: 'Student Name',
+            student_age: 'Student Age',
+            guardian_name: 'Guardian Name',
+            phone_number: 'Phone Number',
+            download_report: 'Download Official Report',
+            lang_toggle: 'Switch to हिन्दी',
+            // Dynamic content
+            z_screener_title_dynamic: 'Z-Screener: Decode the Word',
+            g_screener_title_dynamic: 'Grey Oral Fluency: Reading Rate',
+            p_screener_title_dynamic: 'Parent Monitoring: Behavioral Check',
+            read_aloud: 'Read the sentence aloud:',
+            listening: '🎤 Listening...',
+            correct: '✓ Correct',
+            incorrect: '✗ Incorrect',
+            mic_error: '✗ Mic error or no speech detected. Try again.',
+            activate_mic: '🎤 Activate Mic',
+            next_button: 'Next →',
+            incorrect_button: 'Incorrect',
+            correct_blend_button: 'Correct Blend',
+            no_button: 'No',
+            yes_button: 'Yes',
+            assessment_complete: 'Assessment Complete!',
+            module_complete: 'Module Complete',
+            score_is: 'Score: {score}%',
+            g_score_desc: 'This score reflects reading accuracy and fluency.',
+            p_score_desc: 'This score indicates the number of reported behavioral markers.',
+            return_to_dashboard: 'Return to Dashboard',
+        },
+        hi: {
+            back_to_dashboard: '← डैशबोर्ड पर वापस',
+            page_title: 'डिस्लेक्सिस्कैन मूल्यांकन',
+            z_screener_tag: 'ध्वन्यात्मक कोर',
+            z_screener_title: 'Z-स्क्रीनर',
+            z_screener_desc: 'अक्षर (वर्ण), मात्रा (स्वर चिह्न), और संयुक्ताक्षर (संयुक्त अक्षर) की पहचान का परीक्षण करता है।',
+            take_test: 'टेस्ट दें',
+            g_screener_tag: 'प्रवाह और दर',
+            g_screener_title: 'ग्रे ओरल फ्लुएंसी',
+            g_screener_desc: 'समयबद्ध स्थितियों में पढ़ने की गति और प्रासंगिक सटीकता को मापता है।',
+            p_screener_tag: 'पर्यावरणीय व्यवहार',
+            p_screener_title: 'अभिभावक निगरानी',
+            p_screener_desc: '7 प्रमुख घर-आधारित डिस्लेक्सिया संकेतकों का नैदानिक अवलोकन।',
+            take_survey: 'सर्वेक्षण लें',
+            generate_dossier: 'पूर्ण क्लिनिकल डोसियर उत्पन्न करें',
+            finalize_report: 'क्लिनिकल रिपोर्ट को अंतिम रूप दें',
+            student_name: 'छात्र का नाम',
+            student_age: 'छात्र की आयु',
+            guardian_name: 'अभिभावक का नाम',
+            phone_number: 'फ़ोन नंबर',
+            download_report: 'आधिकारिक रिपोर्ट डाउनलोड करें',
+            lang_toggle: 'Switch to English',
+            // Dynamic content
+            z_screener_title_dynamic: 'Z-स्क्रीनर: शब्द को डिकोड करें',
+            g_screener_title_dynamic: 'ग्रे ओरल फ्लुएंसी: पढ़ने की दर',
+            p_screener_title_dynamic: 'अभिभावक निगरानी: व्यवहार जांच',
+            read_aloud: 'वाक्य को जोर से पढ़ें:',
+            listening: '🎤 सुन रहा है...',
+            correct: '✓ सही',
+            incorrect: '✗ गलत',
+            mic_error: '✗ माइक त्रुटि या कोई भाषण नहीं मिला। पुनः प्रयास करें।',
+            activate_mic: '🎤 माइक सक्रिय करें',
+            next_button: 'अगला →',
+            incorrect_button: 'गलत',
+            correct_blend_button: 'सही मिश्रण',
+            no_button: 'नहीं',
+            yes_button: 'हाँ',
+            assessment_complete: 'मूल्यांकन पूरा!',
+            module_complete: 'मॉड्यूल पूरा',
+            score_is: 'स्कोर: {score}%',
+            g_score_desc: 'यह स्कोर पढ़ने की सटीकता और प्रवाह को दर्शाता है।',
+            p_score_desc: 'यह स्कोर रिपोर्ट किए गए व्यवहार मार्करों की संख्या को इंगित करता है।',
+            return_to_dashboard: 'डैशबोर्ड पर लौटें',
+        }
+    };
+
+    let currentTest = '';
+    let scores = { z: 0, g: 0, p: 0 };
+    let completed = { z: false, g: false, p: false };
+
+    let gMicStream = null;
+    let gMicAudioContext = null;
+    let gMicRaf = null;
+    let gHadVoice = false;
+
+    function stopGreyMic() {
+        if (gMicRaf) {
+            cancelAnimationFrame(gMicRaf);
+            gMicRaf = null;
+        }
+        if (gMicStream) {
+            gMicStream.getTracks().forEach(t => t.stop());
+            gMicStream = null;
+        }
+        if (gMicAudioContext) {
+            try { gMicAudioContext.close(); } catch (_) {}
+            gMicAudioContext = null;
+        }
+    }
+
+    async function startGreyMicLevel(barId, statusId) {
+        stopGreyMic();
+        gHadVoice = false;
+        const barEl = document.getElementById(barId);
+        const statusEl = document.getElementById(statusId);
+        if (statusEl) statusEl.textContent = 'Listening… speak clearly into the microphone';
+
+        gMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const AC = window.AudioContext || window.webkitAudioContext;
+        gMicAudioContext = new AC();
+        const src = gMicAudioContext.createMediaStreamSource(gMicStream);
+        const analyser = gMicAudioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        src.connect(analyser);
+
+        const data = new Uint8Array(analyser.fftSize);
+        const tick = () => {
+            analyser.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) {
+                const v = (data[i] - 128) / 128;
+                sum += v * v;
+            }
+            const rms = Math.sqrt(sum / data.length);
+            if (rms > 0.02) gHadVoice = true;
+            const pct = Math.max(0, Math.min(100, Math.round(rms * 4500)));
+            if (barEl) barEl.style.width = pct + '%';
+            if (statusEl) statusEl.textContent = rms > 0.02 ? 'Voice detected' : 'Listening… speak clearly into the microphone';
+            gMicRaf = requestAnimationFrame(tick);
+        };
+        tick();
+    }
+    
+    const words = {
+        en: ["VAB", "ZOT", "MEP", "QUIP", "FLIB"],
+        hi: ["क", "कि", "की", "प्र", "क्ष", "त्र", "ज्ञ", "श्र", "कृ", "ट्र"]
+    };
+    let wordIdx = 0;
+
+    const greyChallenges = {
+        en: [
+            "The quick brown fox jumps over the lazy dog.",
+            "A large flock of birds flew high above the green valley.",
+            "Spectacular views of the city are available from the tall building."
+        ],
+        hi: [
+            "तेज भूरी लोमड़ी आलसी कुत्ते पर कूदती है।",
+            "पक्षियों का एक बड़ा झुंड हरी घाटी के ऊपर ऊँचा उड़ गया।",
+            "ऊँची इमारत से शहर के शानदार दृश्य उपलब्ध हैं।"
+        ]
+    };
+    let greyChallengeIdx = 0;
+
+    const parentQuestions = {
+        en: [
+            "Does the child often confuse letters like 'b' and 'd'?",
+            "Does the child have difficulty rhyming words (e.g., cat, hat, bat)?",
+            "Is there a history of dyslexia in the family?",
+            "Does the child struggle to remember sequences, like days of the week?",
+            "Does the child avoid reading aloud?",
+            "Is the child's spelling unpredictable and inconsistent?",
+            "Does the child have trouble telling left from right?"
+        ],
+        hi: [
+            "क्या बच्चा अक्सर 'b' और 'd' जैसे अक्षरों में भ्रमित होता है?",
+            "क्या बच्चे को तुकबंदी वाले शब्दों (जैसे, बिल्ली, टोपी, बल्ला) में कठिनाई होती है?",
+            "क्या परिवार में डिस्लेक्सिया का इतिहास है?",
+            "क्या बच्चे को सप्ताह के दिनों जैसे क्रमों को याद रखने में संघर्ष करना पड़ता है?",
+            "क्या बच्चा जोर से पढ़ने से बचता है?",
+            "क्या बच्चे की वर्तनी अप्रत्याशित और असंगत है?",
+            "क्या बच्चे को दाएं और बाएं बताने में परेशानी होती है?"
+        ]
+    };
+    let parentQuestionIdx = 0;
+
+    function startTest(type) {
+        currentTest = type;
+        document.getElementById('landing-view').style.display = 'none';
+        document.getElementById('test-screen').style.display = 'block';
+        
+        const t = translations[currentLang];
+        if(type === 'z') {
+            document.getElementById('test-title').innerText = t.z_screener_title_dynamic;
+            wordIdx = 0;
+            nextWord();
+        } else if(type === 'g') {
+            document.getElementById('test-title').innerText = t.g_screener_title_dynamic;
+            greyChallengeIdx = 0;
+            scores.g = 0;
+            nextGreyChallenge();
+        } else {
+            document.getElementById('test-title').innerText = t.p_screener_title_dynamic;
+            parentQuestionIdx = 0;
+            scores.p = 0;
+            nextParentQuestion();
+        }
+    }
+
+    function nextWord() {
+        const wordList = words[currentLang];
+        if(wordIdx < wordList.length) {
+            document.getElementById('display-word').innerText = wordList[wordIdx];
+        } else {
+            finishSubTest('z', (scores.z / wordList.length) * 100);
+        }
+    }
+
+    function recordResult(val) {
+        scores.z += val;
+        wordIdx++;
+        nextWord();
+    }
+
+    function nextGreyChallenge() {
+        const t = translations[currentLang];
+        const challenges = greyChallenges[currentLang];
+        if (greyChallengeIdx < challenges.length) {
+            const challenge = challenges[greyChallengeIdx];
+            document.getElementById('test-content').innerHTML = `
+                <p style="font-size:1.5rem; margin-bottom: 20px;">${t.read_aloud}</p>
+                <p style="font-size:1.2rem; margin-bottom: 40px; background: #f1f2f6; padding: 20px; border-radius: 15px;">${challenge}</p>
+                <div id="g-feedback" style="height: 40px; font-weight: bold; font-size: 1.2rem;"></div>
+                <div id="g-button-container">
+                    <button class="btn btn-next" onclick="listenGrey('${challenge}')">${t.activate_mic}</button>
+                </div>
+            `;
+        } else {
+            finishSubTest('g', (scores.g / challenges.length) * 100);
+        }
+    }
+
+    function listenGrey(sentence) {
+        const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Rec) {
+            alert('Speech recognition not supported in this browser.');
+            return;
+        }
+        const r = new Rec();
+        const feedbackEl = document.getElementById('g-feedback');
+        const buttonContainer = document.getElementById('g-button-container');
+        buttonContainer.innerHTML = `
+            <button class="btn btn-next" disabled>🎤 Listening...</button>
+            <div style="margin-top: 12px; height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden;">
+                <div id="g-mic-bar" style="height: 100%; width: 0%; background: #16a34a; transition: width 80ms linear;"></div>
+            </div>
+            <div id="g-mic-status" style="margin-top: 8px; font-size: 0.9rem; color: #64748b;"></div>
+        `;
+        feedbackEl.innerText = '';
+
+        r.lang = currentLang === 'hi' ? 'hi-IN' : 'en-US';
+        r.interimResults = false;
+        r.maxAlternatives = 1;
+
+        const cleanup = () => {
+            stopGreyMic();
+        };
+
+        r.onend = () => {
+            cleanup();
+        };
+
+        r.onspeechend = () => {
+            try { r.stop(); } catch (_) {}
+        };
+
+        r.onnomatch = () => {
+            feedbackEl.innerHTML = `<span style="color:red">✗ No speech match detected. Try again.</span>`;
+            buttonContainer.innerHTML = `<button class="btn btn-next" onclick="listenGrey('${sentence}')">🎤 Activate Mic</button>`;
+            cleanup();
+        };
+
+        ;(async () => {
+            try {
+                await startGreyMicLevel('g-mic-bar', 'g-mic-status');
+            } catch (e) {
+                feedbackEl.innerHTML = `<span style="color:red">✗ Microphone access blocked. Please allow microphone and try again.</span>`;
+                buttonContainer.innerHTML = `<button class="btn btn-next" onclick="listenGrey('${sentence}')">🎤 Activate Mic</button>`;
+                cleanup();
+                return;
+            }
+
+            try {
+                r.start();
+            } catch (e) {
+                feedbackEl.innerHTML = `<span style="color:red">✗ Unable to start speech recognition. Try again.</span>`;
+                buttonContainer.innerHTML = `<button class="btn btn-next" onclick="listenGrey('${sentence}')">🎤 Activate Mic</button>`;
+                cleanup();
+            }
+        })();
+
+        r.onresult = (e) => {
+            const transcript = e.results[0][0].transcript.toLowerCase().replace(/[.,]/g, '');
+            const targetWords = sentence.toLowerCase().replace(/[.,]/g, '').split(' ');
+            const transcriptWords = transcript.split(' ');
+
+            let correctWords = 0;
+            const transcriptWordMap = {};
+            transcriptWords.forEach(word => {
+                transcriptWordMap[word] = (transcriptWordMap[word] || 0) + 1;
+            });
+
+            targetWords.forEach(word => {
+                if (transcriptWordMap[word] && transcriptWordMap[word] > 0) {
+                    correctWords++;
+                    transcriptWordMap[word]--;
+                }
+            });
+
+            const matchPercentage = (correctWords / targetWords.length) * 100;
+            const isCorrect = matchPercentage >= 60; // Lowered threshold to 60%
+
+            scores.g += isCorrect ? 1 : 0;
+            feedbackEl.innerHTML = isCorrect 
+                ? `<span style="color:green">✓ Correct</span>` 
+                : `<span style="color:red">✗ Incorrect (Match: ${matchPercentage.toFixed(0)}% | Heard: ${transcript || 'nothing'})</span>`;
+            buttonContainer.innerHTML = `<button class="btn btn-next" onclick="proceedToNextGreyChallenge()">Next →</button>`;
+            cleanup();
+        };
+
+        r.onerror = () => {
+            const err = arguments && arguments[0] && arguments[0].error ? arguments[0].error : 'unknown';
+            if (gHadVoice) {
+                feedbackEl.innerHTML = `<span style="color:#b45309">⚠ Voice detected, but speech recognition failed (${err}). This commonly happens if the browser speech service is offline/blocked. You can continue in demo mode.</span>`;
+                buttonContainer.innerHTML = `<button class="btn btn-next" onclick="proceedToNextGreyChallenge()">Continue →</button>`;
+            } else {
+                feedbackEl.innerHTML = `<span style="color:red">✗ Mic error or no speech detected (${err}). Try again.</span>`;
+                buttonContainer.innerHTML = `<button class="btn btn-next" onclick="listenGrey('${sentence}')">🎤 Activate Mic</button>`;
+            }
+            cleanup();
+        };
+    }
+
+    function proceedToNextGreyChallenge() {
+        greyChallengeIdx++;
+        nextGreyChallenge();
+    }
+
+    function nextParentQuestion() {
+        const t = translations[currentLang];
+        const questions = parentQuestions[currentLang];
+        if (parentQuestionIdx < questions.length) {
+            document.getElementById('test-content').innerHTML = `
+                <p style="font-size:1.5rem; margin-bottom: 40px;">${questions[parentQuestionIdx]}</p>
+                <div>
+                    <button class="btn btn-outline" onclick="answerParentQuestion(0)">${t.no_button}</button>
+                    <button class="btn btn-next" onclick="answerParentQuestion(1)">${t.yes_button}</button>
+                </div>
+            `;
+        } else {
+            finishSubTest('p', (scores.p / questions.length) * 100);
+        }
+    }
+
+    function answerParentQuestion(answer) {
+        scores.p += answer;
+        parentQuestionIdx++;
+        nextParentQuestion();
+    }
+
+    function finishSubTest(type, scoreVal) {
+        completed[type] = true;
+        scores[type] = Math.round(scoreVal);
+        document.getElementById(`badge-${type}`).style.display = 'block';
+
+        const t = translations[currentLang];
+        let scoreText = t.score_is.replace('{score}', scores[type]);
+        let assessmentHTML = `<h2>${t.assessment_complete}</h2><p style="font-size: 2rem; margin: 20px 0;">${scoreText}</p>`;
+
+        if (type === 'g') {
+            assessmentHTML += `<p>${t.g_score_desc}</p>`;
+        } else if (type === 'p') {
+            assessmentHTML += `<p>${t.p_score_desc}</p>`;
+        }
+        assessmentHTML += `<button class="btn btn-next" onclick="returnToDashboard()">${t.return_to_dashboard}</button>`;
+
+        document.getElementById('test-title').innerText = t.module_complete;
+        document.getElementById('test-content').innerHTML = assessmentHTML;
+    }
+
+    function returnToDashboard() {
+        document.getElementById('test-screen').style.display = 'none';
+        document.getElementById('landing-view').style.display = 'block';
+        if(completed.z && completed.g && completed.p) {
+            document.getElementById('final-action').style.display = 'block';
+        }
+    }
+
+    function showModal() { document.getElementById('info-modal').style.display = 'flex'; }
+
+    function calculateRisk() {
+        const { z, g, p } = scores;
+        if (z < 60 || g < 70 || p > 50) {
+            return { level: 'High Risk', color: [220, 38, 38] };
+        }
+        if (z < 80 || g < 85 || p > 30) {
+            return { level: 'Moderate Risk', color: [245, 158, 11] };
+        }
+        return { level: 'Low Risk', color: [34, 197, 94] };
+    }
+
+    document.getElementById('lang-toggle').addEventListener('click', () => {
+        currentLang = currentLang === 'en' ? 'hi' : 'en';
+        updateUIText();
+    });
+
+    function updateUIText() {
+        document.querySelectorAll('[data-lang-key]').forEach(el => {
+            const key = el.getAttribute('data-lang-key');
+            if (translations[currentLang][key]) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = translations[currentLang][key];
+                } else {
+                    el.textContent = translations[currentLang][key];
+                }
+            }
+        });
+        // Update button text that doesn't have a key
+        document.getElementById('lang-toggle').textContent = translations[currentLang]['lang_toggle'];
+    }
+
+    function downloadPDF() {
+        const doc = new jsPDF();
+        const sName = document.getElementById('sName').value;
+        const gName = document.getElementById('gName').value;
+
+        doc.setFillColor(108, 92, 231); doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(22);
+        doc.text("DYSLEXISCAN CLINICAL REPORT", 20, 25);
+        
+        doc.setTextColor(40, 40, 40); doc.setFontSize(12);
+        doc.text(`Student: ${sName}`, 20, 55);
+        doc.text(`Guardian: ${gName}`, 20, 65);
+        doc.text(`Phone: ${document.getElementById('gPhone').value}`, 20, 75);
+        
+        doc.line(20, 80, 190, 80);
+        doc.text(`Z-Screener Decoding Accuracy: ${scores.z}%`, 20, 95);
+        doc.text(`Oral Fluency Level: ${scores.g}%`, 20, 105);
+        doc.text(`Parental Symptom Risk: ${scores.p}%`, 20, 115);
+
+        const risk = calculateRisk();
+        doc.setFontSize(14);
+        doc.text("Overall Dyslexia Risk Profile:", 20, 135);
+        doc.setTextColor(risk.color[0], risk.color[1], risk.color[2]);
+        doc.setFontSize(16);
+        doc.text(risk.level, 20, 145);
+
+        doc.setTextColor(40, 40, 40);
+        doc.setFontSize(14); doc.text("Clinical Observations:", 20, 165);
+        doc.setFontSize(10);
+        const analysis = "Based on the multi-modal assessment, the student shows indicators of phonological processing difficulty. Recommended precautions include Orton-Gillingham instruction and 50% extra time in exams.";
+        doc.text(doc.splitTextToSize(analysis, 170), 20, 175);
+
+        doc.save(`${sName}_Diagnostic_Report.pdf`);
+    }
+</script>
+</body>
+</html>

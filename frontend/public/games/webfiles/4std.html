@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magical Learning World - Deluxe Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;600&display=swap');
+
+        :root {
+            --pastel-blue: #e0f0ff;
+            --pastel-yellow: #fff9d6;
+            --pastel-green: #e6ffe6;
+            --pastel-pink: #ffe0e0;
+            --text-dark: #2c3e50;
+            --card-bg: rgba(255, 255, 255, 0.9);
+        }
+
+        body {
+            margin: 0; padding: 20px; font-family: 'Lexend', sans-serif;
+            background: var(--pastel-blue); color: var(--text-dark);
+            display: flex; flex-direction: column; align-items: center;
+            transition: background 1s ease;
+        }
+        body.night { background: #1a2a40; color: #f0f8ff; }
+
+        /* Teacher Guide */
+        #teacher-guide {
+            display: none;
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 320px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: -8px 0 20px rgba(0,0,0,0.2);
+            padding: 20px;
+            z-index: 1000;
+            overflow-y: auto;
+            border-left: 6px solid #ffdb58;
+        }
+        .guide-btn {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 14px 22px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Lexend', sans-serif;
+            z-index: 1001;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+
+        .game-card {
+            background: var(--card-bg); width: 100%; max-width: 700px;
+            border-radius: 25px; padding: 30px; margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center;
+        }
+
+        h1 { font-size: 2rem; margin-bottom: 10px; }
+        .chunked-text { font-size: 1.4rem; line-height: 1.8; margin-bottom: 20px; }
+
+        .voice-btn {
+            background: #ffdb58; border: none; padding: 10px 20px;
+            border-radius: 50px; font-size: 1.2rem; cursor: pointer;
+            box-shadow: 0 4px 0 #d4b122; transition: 0.1s; margin-bottom: 20px;
+        }
+
+        /* Clock Styles (Kept Exactly Same) */
+        .clock {
+            position: relative; width: 260px; height: 260px;
+            background: white; border: 10px solid #555; border-radius: 50%;
+            margin: 0 auto 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .number {
+            position: absolute; width: 100%; height: 100%;
+            text-align: center; font-size: 1.5rem; font-weight: bold; padding-top: 10px; box-sizing: border-box;
+        }
+        .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom center; border-radius: 10px; transition: transform 0.5s ease; }
+        .hour { width: 8px; height: 70px; background: #333; margin-left: -4px; z-index: 2; }
+        .minute { width: 6px; height: 100px; background: #007bff; margin-left: -3px; z-index: 3; }
+        .center-dot { position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; background: #333; border-radius: 50%; transform: translate(-50%, -50%); z-index: 4; }
+
+        /* Pizza Fraction Styles */
+        .pizza-container { position: relative; width: 200px; height: 200px; margin: 20px auto; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 5px; background: #d2691e; border-radius: 50%; padding: 10px; border: 5px solid #8b4513; }
+        .slice { background: #ffd700; border-radius: 5px; cursor: pointer; transition: 0.3s; border: 2px solid #ffa500; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .slice.selected { background: #ff4500; transform: scale(0.95); box-shadow: inset 0 0 10px #000; }
+
+        .btn { padding: 15px 25px; font-size: 1.2rem; font-family: 'Lexend'; background: white; border: 2px solid #ccc; border-radius: 15px; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: var(--pastel-green); border-color: #7bce7b; font-weight: bold; }
+
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .opt-btn { padding: 15px; font-size: 1.2rem; border-radius: 15px; border: 2px solid #ccc; cursor: pointer; background: white; transition: 0.3s; }
+        
+        #confetti { position: fixed; top:0; left:0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .feedback { font-size: 1.3rem; font-weight: bold; margin-top: 15px; min-height: 30px; }
+        
+        .animation-box { font-size: 4rem; margin: 20px 0; height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .rabbit-move { animation: hop 2s infinite; }
+        @keyframes hop { 0%, 100% { transform: translateX(-50px); } 50% { transform: translateX(50px) translateY(-20px); } }
+        .spin { animation: spin 4s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti"></canvas>
+
+    <button class="guide-btn" onclick="toggleGuide()">📘 Teacher Guide</button>
+
+    <div id="teacher-guide">
+        <button onclick="toggleGuide()" style="float:right; border:none; background:transparent; font-size:18px; cursor:pointer;">✖</button>
+        <h2 style="margin-top:0;">Teacher Guide</h2>
+        <hr>
+        <p><b>Level 5 (Time Master):</b> Ask the child to match the target time first, then choose <i>A.M.</i> or <i>P.M.</i>. Use the background change to discuss day vs night.</p>
+        <p><b>Level 6 (Pizza Fractions):</b> Connect slices to parts of a whole. Explain that <i>2/4</i> and <i>1/2</i> are the same idea (half).</p>
+        <p><b>Alice's Adventures:</b> Encourage the child to press the yellow <i>voice</i> buttons. After each answer, ask them to explain “why”.</p>
+        <p><b>Tip:</b> Keep sessions short (5–10 minutes) and repeat the same level on different days for confidence.</p>
+    </div>
+
+    <div class="game-card">
+        <h1>🎮 Level 5: Time Master</h1>
+        <button class="voice-btn" onclick="speak('Make the clock match the target time. Then tell me if it is morning or night!')">🔊 Hear Instructions</button>
+        <div class="chunked-text" id="target-time-display">Target Time: <b>--:--</b></div>
+        <div class="clock" id="clock-face">
+            <div class="center-dot"></div>
+            <div class="hand hour" id="h-hand"></div>
+            <div class="hand minute" id="m-hand"></div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button class="btn" onclick="moveTime(60)">+ 1 Hour</button>
+            <button class="btn" onclick="moveTime(15)">+ 15 Mins</button>
+        </div>
+        <p>Is it A.M. ☀️ or P.M. 🌙?</p>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button class="btn" onclick="checkTimeAnswer('AM')">☀️ A.M.</button>
+            <button class="btn" onclick="checkTimeAnswer('PM')">🌙 P.M.</button>
+        </div>
+        <div class="feedback" id="time-feedback"></div>
+        <button class="btn btn-primary" style="display:none;" id="next-time-btn" onclick="generateNewTime()">Next Time 🎯</button>
+    </div>
+
+    <div class="game-card">
+        <h1>🍕 Level 6: Pizza Fractions</h1>
+        <button class="voice-btn" onclick="speak('Show me the fraction of pizza I ask for. Tap the slices to pick them!')">🔊 Instructions</button>
+        <div class="chunked-text" id="fraction-goal">Tap the slices to show <b>3/4</b> of the pizza!</div>
+        <div class="pizza-container" id="pizza-box">
+            <div class="slice" onclick="toggleSlice(this)">🍕</div>
+            <div class="slice" onclick="toggleSlice(this)">🍕</div>
+            <div class="slice" onclick="toggleSlice(this)">🍕</div>
+            <div class="slice" onclick="toggleSlice(this)">🍕</div>
+        </div>
+        <button class="btn btn-primary" onclick="checkFraction()">Check Pizza ✨</button>
+        <div id="fraction-comparison" style="display:none; margin-top:20px;">
+            <p>Great! Now tell me: Is <b>2/4</b> smaller than <b>3/4</b>?</p>
+            <button class="btn" onclick="fractionCompare(true)">Yes, 2/4 is smaller</button>
+            <button class="btn" onclick="fractionCompare(false)">No, it's bigger</button>
+        </div>
+        <div class="feedback" id="fraction-feedback"></div>
+    </div>
+
+    <div class="game-card">
+        <h1>🍄 Alice's Adventures</h1>
+        <div id="alice-level-1">
+            <button class="voice-btn" onclick="speak('Alice was curious. She saw a white rabbit. The rabbit was in a hurry!')">🔊 Scene 1</button>
+            <div class="animation-box"><span class="rabbit-move">🐇</span> 👧🏼</div>
+            <p class="chunked-text">Alice saw a <b>white rabbit</b>. He was in a hurry!</p>
+            <h3>Why did Alice follow him?</h3>
+            <div class="options">
+                <button class="opt-btn" onclick="nextAlice(2, true)">Because she was curious 🧠</button>
+                <button class="opt-btn" onclick="nextAlice(1, false)">Because she was sleepy 😴</button>
+            </div>
+        </div>
+
+        <div id="alice-level-2" style="display:none;">
+            <button class="voice-btn" onclick="speak('Alice fell into a deep hole. It felt strange and magical.')">🔊 Scene 2</button>
+            <div class="animation-box spin">🌀 📚 ⏰</div>
+            <p class="chunked-text">Alice is falling down the <b>Rabbit Hole</b>!</p>
+            <p>Which item belongs in <b>Wonderland</b>?</p>
+            <div class="options">
+                <button class="opt-btn" onclick="nextAlice(3, true)">A talking Cat 🐱</button>
+                <button class="opt-btn" onclick="nextAlice(2, false)">A normal school bus 🚌</button>
+            </div>
+        </div>
+
+        <div id="alice-level-3" style="display:none;">
+            <button class="voice-btn" onclick="speak('The Mad Hatter is silly. The Queen is angry. Match them!')">🔊 Scene 3</button>
+            <div class="animation-box">🎩 👑 🍵</div>
+            <p class="chunked-text">Match the personality!</p>
+            <p>Who is <b>Angry</b> and yells "Off with their heads!"?</p>
+            <div class="options">
+                <button class="opt-btn" onclick="finishAlice(true)">The Queen 👑</button>
+                <button class="opt-btn" onclick="finishAlice(false)">The Mad Hatter 🎩</button>
+            </div>
+        </div>
+        <div class="feedback" id="alice-feedback"></div>
+    </div>
+
+    <script>
+        function toggleGuide() {
+            const g = document.getElementById('teacher-guide');
+            g.style.display = g.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // SPEAK LOGIC
+        function speak(t) {
+            window.speechSynthesis.cancel();
+            let m = new SpeechSynthesisUtterance(t); m.rate = 0.7; window.speechSynthesis.speak(m);
+        }
+
+        // CLOCK LOGIC (KEPT SAME)
+        const clockFace = document.getElementById('clock-face');
+        for (let i = 1; i <= 12; i++) {
+            let n = document.createElement('div'); n.className = 'number';
+            n.style.transform = `rotate(${i * 30}deg)`;
+            n.innerHTML = `<span style="display:inline-block; transform: rotate(-${i * 30}deg);">${i}</span>`;
+            clockFace.appendChild(n);
+        }
+        let currentMins = 0; let tH, tM, tP;
+        function updateClock() {
+            let h = Math.floor(currentMins/60)%12; let m = currentMins%60;
+            document.getElementById('h-hand').style.transform = `translateX(-50%) rotate(${(h/12)*360+(m/60)*30}deg)`;
+            document.getElementById('m-hand').style.transform = `translateX(-50%) rotate(${(m/60)*360}deg)`;
+        }
+        function moveTime(m) { currentMins += m; updateClock(); }
+        function generateNewTime() {
+            tH = Math.floor(Math.random()*12)+1; tM = [0,15,30,45][Math.floor(Math.random()*4)];
+            tP = Math.random() > 0.5 ? "AM" : "PM";
+            document.getElementById('target-time-display').innerHTML = `Target: <b>${tH}:${tM==0?'00':tM} ${tP}</b>`;
+            document.getElementById('time-feedback').innerText = "";
+            document.getElementById('next-time-btn').style.display = "none";
+            document.body.className = tP=="PM" ? "night" : "";
+            currentMins = 0; updateClock();
+        }
+        function checkTimeAnswer(p) {
+            let ph = Math.floor(currentMins/60)%12; if(ph==0) ph=12;
+            let pm = currentMins%60;
+            let fb = document.getElementById('time-feedback');
+            if(ph==tH && pm==tM && p==tP) {
+                fb.innerText = "⭐ Brilliant! Time Master!"; fireConfetti();
+                document.getElementById('next-time-btn').style.display = "inline-block";
+            } else { fb.innerText = "Good try 😊 Think again!"; }
+        }
+
+        // FRACTION LOGIC
+        function toggleSlice(el) { el.classList.toggle('selected'); }
+        function checkFraction() {
+            let count = document.querySelectorAll('.slice.selected').length;
+            let fb = document.getElementById('fraction-feedback');
+            if(count === 3) {
+                fb.innerText = "✨ Sparkle! That is 3/4!"; fireConfetti();
+                document.getElementById('fraction-comparison').style.display = "block";
+            } else { fb.innerText = "Try to tap 3 slices! 😊"; }
+        }
+        function fractionCompare(correct) {
+            let fb = document.getElementById('fraction-feedback');
+            if(correct) { fb.innerText = "⭐ Correct! 2 slices is less than 3 slices!"; fireConfetti(); }
+            else { fb.innerText = "Let's look again 😊"; }
+        }
+
+        // ALICE LOGIC
+        function nextAlice(lvl, correct) {
+            let fb = document.getElementById('alice-feedback');
+            if(correct) {
+                document.getElementById('alice-level-1').style.display = "none";
+                document.getElementById('alice-level-2').style.display = "none";
+                document.getElementById('alice-level-'+lvl).style.display = "block";
+                fb.innerText = "⭐ Correct! Curiosity is key!"; fireConfetti();
+            } else { fb.innerText = "Good try! Try again 😊"; }
+        }
+        function finishAlice(correct) {
+            let fb = document.getElementById('alice-feedback');
+            if(correct) { fb.innerText = "🏆 You finished the story! You are a Queen of Learning!"; fireConfetti(); }
+            else { fb.innerText = "The Hatter is silly, but the Queen is the angry one! Try again."; }
+        }
+
+        // CONFETTI
+        const cvs = document.getElementById('confetti'); const ctx = cvs.getContext('2d');
+        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        let pArray = [];
+        function fireConfetti() {
+            for(let i=0; i<30; i++) pArray.push({x:cvs.width/2, y:cvs.height/2, dx:Math.random()*6-3, dy:Math.random()*-6-3, c:`hsl(${Math.random()*360},100%,50%)`});
+            anim();
+        }
+        function anim() {
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            pArray.forEach((p,i) => { p.x+=p.dx; p.y+=p.dy; p.dy+=0.1; ctx.fillStyle=p.c; ctx.fillRect(p.x,p.y,6,6); if(p.y>cvs.height) pArray.splice(i,1); });
+            if(pArray.length>0) requestAnimationFrame(anim);
+        }
+
+        generateNewTime();
+    </script>
+</body>
+</html>

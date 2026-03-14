@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCULI | Visual Sensitivity & Flex-Mode</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;900&display=swap');
+        :root {
+            --bg: #e0e5ec; --shadow: #a3b1c6; --light: #ffffff;
+            --primary: #6d5dfc; --success: #00b894; --error: #ff7675; --gold: #f1c40f;
+        }
+        body { background-color: var(--bg); font-family: 'Lexend', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { max-width: 900px; width: 100%; padding: 40px; border-radius: 50px; background: var(--bg); box-shadow: 20px 20px 60px var(--shadow), -20px -20px 60px var(--light); text-align: center; }
+        
+        /* Age Tabs */
+        .age-tabs { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
+        .tab { padding: 12px 18px; border-radius: 15px; border: none; background: var(--bg); font-weight: 700; cursor: pointer; box-shadow: 4px 4px 8px var(--shadow), -4px -4px 8px var(--light); color: #666; transition: 0.3s; }
+        .tab.active { box-shadow: inset 4px 4px 8px var(--shadow), inset -4px -4px 8px var(--light); color: var(--primary); }
+
+        /* Level Dots */
+        .level-dots { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .dot { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg); box-shadow: 3px 3px 6px var(--shadow); cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .dot.active { color: white; background: var(--primary); transform: scale(1.1); }
+        .dot.advance { border: 2px solid var(--gold); }
+
+        /* Sensitivity Bar */
+        .visualizer-container { width: 100%; height: 20px; background: var(--bg); border-radius: 10px; box-shadow: inset 4px 4px 8px var(--shadow), inset -4px -4px 8px var(--light); margin-bottom: 25px; overflow: hidden; position: relative; }
+        #vol-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--success), var(--gold)); transition: width 0.1s ease; border-radius: 10px; }
+
+        #reading-stage {
+            min-height: 150px; margin-bottom: 30px; padding: 30px; border-radius: 30px;
+            background: var(--bg); box-shadow: inset 8px 8px 16px var(--shadow), inset -8px -8px 16px var(--light);
+            font-size: 2.2rem; line-height: 1.8; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+        }
+
+        .word { padding: 5px 10px; border-radius: 10px; color: #999; transition: 0.3s; }
+        .word.active-trace { color: var(--primary); transform: scale(1.1); font-weight: 900; border-bottom: 5px solid var(--primary); }
+        .word.correct { color: var(--success); text-shadow: 0 0 10px rgba(0, 184, 148, 0.2); }
+
+        .controls { display: flex; justify-content: center; gap: 20px; }
+        .btn-3d { width: 85px; height: 85px; border-radius: 50%; border: none; background: var(--bg); box-shadow: 8px 8px 16px var(--shadow), -8px -8px 16px var(--light); cursor: pointer; font-size: 32px; transition: 0.2s; }
+        .btn-3d:active { box-shadow: inset 4px 4px 8px var(--shadow), inset -4px -4px 8px var(--light); }
+        .btn-3d.recording { color: var(--error); border: 3px solid var(--error); animation: pulse 1.5s infinite; }
+
+        #result-card { display: none; margin-top: 30px; padding: 20px; border-radius: 20px; background: var(--bg); box-shadow: 6px 6px 12px var(--shadow), -6px -6px 12px var(--light); animation: slideIn 0.4s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0.4); } 100% { box-shadow: 0 0 0 20px rgba(255, 118, 117, 0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="color: var(--primary); font-weight: 900; margin-bottom: 10px;">OCULI | Intelligence System</h1>
+    <p style="margin-bottom: 25px; font-weight: bold; color: #777;">Real-time Voice Analysis & Trace</p>
+    
+    <div class="age-tabs">
+        <button class="tab active" onclick="setAge(0)">Under 5</button>
+        <button class="tab" onclick="setAge(1)">5-10 Yrs</button>
+        <button class="tab" onclick="setAge(2)">10-15 Yrs</button>
+    </div>
+
+    <div class="level-dots" id="level-dots"></div>
+
+    <p style="font-size: 0.8rem; margin-bottom: 5px; color: var(--primary); font-weight: bold;">MIC SENSITIVITY LEVEL</p>
+    <div class="visualizer-container">
+        <div id="vol-bar"></div>
+    </div>
+
+    <div id="reading-stage">Select a level and press the Mic!</div>
+
+    <div class="controls">
+        <button id="mic-btn" class="btn-3d" onclick="toggleMic()">🎤</button>
+        <button class="btn-3d" onclick="location.reload()">🔄</button>
+    </div>
+
+    <div id="result-card">
+        <h2 id="acc-score" style="color: var(--primary); margin: 0;">Accuracy: 0%</h2>
+        <p id="feedback-msg" style="font-weight: 900; margin-top: 5px;"></p>
+    </div>
+</div>
+
+<audio id="clap-snd" src="https://www.myinstants.com/media/sounds/applause.mp3"></audio>
+
+<script>
+    const CONTENT = [
+        { levels: ["The big dog sat.", "A bad cat ran.", "Dad is in bed."], adv: "The red fox and the big pig had fun in the sun." },
+        { levels: ["The quick fox jumps.", "I saw a bird.", "Small fish swim."], adv: "Yesterday we played near the stream and found smooth stones." },
+        { levels: ["Photosynthesis is green.", "Gravity pulls down.", "The ocean has waves."], adv: "Biodiversity is critical for ecosystem stability and environmental safety." }
+    ];
+
+    let currentAge = 0, currentLevel = 0, currentWordIdx = 0, isListening = false;
+    let recognition, audioContext, analyser, dataArray;
+    let unlockedAdv = [false, false, false];
+
+    // Initialize Web Speech
+    function initSpeech() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new Speech();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+            let transcript = "";
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript.toLowerCase();
+            }
+            const spokenWords = transcript.replace(/[.,!]/g, "").split(/\s+/);
+            checkVoice(spokenWords[spokenWords.length - 1]);
+        };
+    }
+
+    // Initialize Audio Visualizer (Sensitivity Bar)
+    async function initVisualizer() {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        drawVisualizer();
+    }
+
+    function drawVisualizer() {
+        if (!analyser) return;
+        requestAnimationFrame(drawVisualizer);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        let average = sum / dataArray.length;
+        document.getElementById('vol-bar').style.width = Math.min(average * 2, 100) + "%";
+    }
+
+    function toggleMic() {
+        if (!isListening) {
+            if (!audioContext) initVisualizer();
+            recognition.start();
+            isListening = true;
+            document.getElementById('mic-btn').classList.add('recording');
+            document.getElementById('result-card').style.display = "none";
+        } else {
+            stopSession();
+        }
+    }
+
+    function checkVoice(spoken) {
+        const text = currentLevel === 3 ? CONTENT[currentAge].adv : CONTENT[currentAge].levels[currentLevel];
+        const targetWords = text.toLowerCase().replace(/[.,!]/g, "").split(" ");
+        const target = targetWords[currentWordIdx];
+
+        // Fuzzy match logic
+        if (spoken === target || (spoken.length > 2 && target.includes(spoken))) {
+            document.getElementById(`w-${currentWordIdx}`).classList.add('correct');
+            currentWordIdx++;
+            if (currentWordIdx >= targetWords.length) stopSession();
+            else updateHighlight();
+        }
+    }
+
+    function stopSession() {
+        recognition.stop();
+        isListening = false;
+        document.getElementById('mic-btn').classList.remove('recording');
+        
+        const text = currentLevel === 3 ? CONTENT[currentAge].adv : CONTENT[currentAge].levels[currentLevel];
+        const total = text.split(" ").length;
+        const accuracy = Math.round((currentWordIdx / total) * 100);
+
+        showResults(accuracy);
+    }
+
+    function showResults(acc) {
+        const card = document.getElementById('result-card');
+        const score = document.getElementById('acc-score');
+        const msg = document.getElementById('feedback-msg');
+        
+        card.style.display = "block";
+        score.innerText = `Accuracy: ${acc}%`;
+
+        if (acc >= 40) {
+            unlockedAdv[currentAge] = true;
+            msg.innerText = "🌟 VERY GOOD! Advance Level Unlocked!";
+            msg.style.color = "var(--success)";
+            document.getElementById('clap-snd').play();
+            speak("Very good! You are reading wonderfully.");
+            confetti({ particleCount: 120, spread: 70 });
+            renderDots();
+        } else {
+            msg.innerText = "Keep trying! Let's hit 40%!";
+            msg.style.color = "#777";
+            speak("Nice effort! Let's practice some more.");
+        }
+    }
+
+    function speak(txt) {
+        const utterance = new SpeechSynthesisUtterance(txt);
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function setAge(idx) {
+        currentAge = idx; currentLevel = 0;
+        document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+        renderDots(); loadText();
+    }
+
+    function renderDots() {
+        const container = document.getElementById('level-dots');
+        container.innerHTML = "";
+        for (let i = 0; i < 4; i++) {
+            const dot = document.createElement('div');
+            dot.className = `dot ${i === currentLevel ? 'active' : ''} ${i === 3 ? 'advance' : ''}`;
+            if (i === 3 && !unlockedAdv[currentAge]) {
+                dot.innerText = "🔒";
+            } else {
+                dot.innerText = i === 3 ? "⭐" : i + 1;
+                dot.onclick = () => { currentLevel = i; renderDots(); loadText(); };
+            }
+            container.appendChild(dot);
+        }
+    }
+
+    function loadText() {
+        const text = currentLevel === 3 ? CONTENT[currentAge].adv : CONTENT[currentAge].levels[currentLevel];
+        const words = text.split(" ");
+        document.getElementById('reading-stage').innerHTML = words.map((w, i) => `<span class="word" id="w-${i}">${w}</span>`).join("");
+        currentWordIdx = 0; updateHighlight();
+    }
+
+    function updateHighlight() {
+        document.querySelectorAll('.word').forEach(w => w.classList.remove('active-trace'));
+        const el = document.getElementById(`w-${currentWordIdx}`);
+        if (el) el.classList.add('active-trace');
+    }
+
+    initSpeech();
+    setAge(0);
+</script>
+</body>
+</html>

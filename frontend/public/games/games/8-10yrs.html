@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Cognitive Screener (8-10+ Yrs)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+        }
+        body { background-color: #020617; font-family: 'Inter', sans-serif; }
+        .obsidian-glass {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid #1e293b;
+            transition: all 0.3s ease;
+        }
+        .obsidian-glass:hover {
+            border-color: #38bdf8;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(56, 189, 248, 0.1);
+        }
+        .entry-animation { animation: fadeIn 0.5s ease-out forwards; }
+        .timer-pulse { animation: pulse 2s infinite; }
+        .card-flipper { perspective: 1000px; }
+        .card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+        .card-flipper.flipped .card-inner { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 0.5rem; }
+        .card-back { transform: rotateY(180deg); background-color: #334155; /* Slate 600 */ }
+        .card-front { background-color: #1e293b; /* Slate 800 */ }
+        .btn-action { transition: all 0.2s ease; }
+        .btn-action:hover { transform: scale(1.05); }
+        .btn-action:active { transform: scale(0.95); }
+        @keyframes feedback-correct {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            100% { box-shadow: 0 0 0 20px rgba(34, 197, 94, 0); }
+        }
+        @keyframes feedback-incorrect {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            100% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        }
+        .feedback-correct { animation: feedback-correct 0.5s ease; }
+        .feedback-incorrect { animation: feedback-incorrect 0.5s ease; }
+    </style>
+</head>
+<body class="text-slate-300">
+
+    <!-- Dashboard -->
+    <main id="dashboard" class="min-h-screen flex flex-col items-center justify-center p-6 transition-opacity duration-500">
+        <a href="games.html" class="absolute top-6 left-6 text-sky-400 hover:text-sky-200 transition">&larr; Back to Age Selection</a>
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-white tracking-wide">Advanced Cognitive Screener</h1>
+            <p class="text-slate-400">Clinical Modules for Ages 8-10+</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
+            <div class="obsidian-glass rounded-lg p-6 text-center cursor-pointer entry-animation" data-module="alien">
+                <h2 class="text-2xl font-bold text-sky-400">Alien Word Challenge</h2>
+                <p class="mt-2 text-slate-400">Assesses phonological decoding and grapheme-phoneme correspondence.</p>
+            </div>
+            <div class="obsidian-glass rounded-lg p-6 text-center cursor-pointer entry-animation" style="animation-delay: 150ms;" data-module="ran">
+                <h2 class="text-2xl font-bold text-sky-400">Rapid Naming Race</h2>
+                <p class="mt-2 text-slate-400">Measures processing speed and lexical retrieval efficiency (RAN).</p>
+            </div>
+            <div class="obsidian-glass rounded-lg p-6 text-center cursor-pointer entry-animation" style="animation-delay: 300ms;" data-module="memory">
+                <h2 class="text-2xl font-bold text-sky-400">Magic Memory Chain</h2>
+                <p class="mt-2 text-slate-400">Evaluates visual sequential and working memory capacity.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Assessment Area -->
+    <section id="assessment-area" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-6">
+        <div id="module-container" class="obsidian-glass rounded-xl w-full max-w-4xl h-auto min-h-[500px] p-6 relative">
+            <button id="back-to-dashboard" class="absolute top-4 left-6 text-sky-400 hover:text-sky-200 transition">&larr; Back to Dashboard</button>
+            <!-- Module content will be injected here -->
+        </div>
+    </section>
+
+    <!-- Intermediate Report -->
+    <section id="intermediate-report-area" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 z-10">
+        <div class="obsidian-glass rounded-xl w-full max-w-lg p-8 text-center entry-animation">
+            <h2 id="intermediate-report-title" class="text-3xl font-bold text-sky-400 mb-6">Module Complete</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-lg">Processing Speed</label>
+                    <div class="w-full bg-slate-700 rounded-full h-4 mt-1">
+                        <div id="intermediate-speed-gauge" class="bg-sky-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-lg">Accuracy</label>
+                    <p id="intermediate-accuracy-percent" class="text-2xl font-bold text-white">0%</p>
+                </div>
+            </div>
+            <button id="next-module-btn" class="mt-8 bg-sky-500 text-white font-bold py-2 px-6 rounded-lg btn-action">Next Module</button>
+        </div>
+    </section>
+
+    <!-- Diagnostic Report -->
+    <section id="report-area" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-6">
+        <div class="obsidian-glass rounded-xl w-full max-w-3xl p-8 text-left entry-animation">
+            <h2 class="text-3xl font-bold text-sky-400 mb-6 text-center">Diagnostic Performance Profile</h2>
+            <div id="final-report-content" class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <!-- Report content will be injected here -->
+            </div>
+            <div class="text-center mt-8">
+                <button id="download-report" class="bg-sky-500 text-white font-bold py-2 px-6 rounded-lg btn-action">Download Full Report</button>
+                <button id="close-report" class="ml-4 bg-slate-600 text-white font-bold py-2 px-6 rounded-lg btn-action">Close</button>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Icons
+            lucide.createIcons();
+
+            const dashboard = document.getElementById('dashboard');
+            const assessmentArea = document.getElementById('assessment-area');
+            const moduleContainer = document.getElementById('module-container');
+            const reportArea = document.getElementById('report-area');
+            const closeReportBtn = document.getElementById('close-report');
+            const intermediateReportArea = document.getElementById('intermediate-report-area');
+            const nextModuleBtn = document.getElementById('next-module-btn');
+
+            /**
+             * Uses the browser's Speech Synthesis API to speak text.
+             */
+            function speak(text) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.8;
+                window.speechSynthesis.speak(utterance);
+            }
+
+            const AppState = {
+                currentModule: null,
+                currentLevel: 0,
+                results: {
+                    alien: { accuracy: [], reactionTimes: [], delays: 0 },
+                    ran: { accuracy: [], times: [] },
+                    memory: { accuracy: 0 }
+                },
+                modulesCompleted: 0
+            };
+
+            const modules = {
+                alien: {
+                    words: [
+                        { word: 'Stamp', type: 'real' }, { word: 'Stomp', type: 'alien' },
+                        { word: 'Bright', type: 'real' }, { word: 'Broght', type: 'alien' },
+                        { word: 'Forest', type: 'real' }, { word: 'Ferest', type: 'alien' },
+                        { word: 'Train', type: 'real' }, { word: 'Trane', type: 'alien' },
+                        { word: 'Planet', type: 'real' }, { word: 'Plonet', type: 'alien' },
+                        { word: 'Crisp', type: 'real' }, { word: 'Crasp', type: 'alien' }
+                    ],
+                    startTime: 0,
+                    init: function() {
+                        if (AppState.currentLevel >= this.words.length) {
+                            nextLevel(); // End of this module
+                            return;
+                        }
+                        const item = this.words[AppState.currentLevel];
+                        moduleContainer.innerHTML = `
+                            <div class="text-center flex flex-col items-center justify-center h-full">
+                                <h3 class="text-2xl text-slate-400 mb-8">Is this a Real or Alien word?</h3>
+                                <div class="relative w-80 h-40 flex items-center justify-center obsidian-glass border-sky-500 rounded-lg text-6xl font-bold text-white mb-10">
+                                    <span>${item.word}</span>
+                                    <button id="speak-word-btn" class="absolute bottom-2 right-2 text-slate-400 hover:text-white btn-action"><i data-lucide="volume-2" class="w-6 h-6"></i></button>
+                                </div>
+                                <div class="flex gap-8">
+                                    <button class="bg-sky-600 text-white font-bold py-4 px-12 rounded-lg text-2xl btn-action" data-choice="real">REAL</button>
+                                    <button class="bg-purple-600 text-white font-bold py-4 px-12 rounded-lg text-2xl btn-action" data-choice="alien">ALIEN</button>
+                                </div>
+                            </div>`;
+                        lucide.createIcons();
+                        speak(item.word);
+                        this.startTime = Date.now();
+                        document.getElementById('speak-word-btn').onclick = () => speak(item.word);
+                        moduleContainer.querySelectorAll('[data-choice]').forEach(btn => {
+                            btn.onclick = () => this.recordResult(btn, item.type);
+                        });
+                    },
+                    recordResult: function(button, correctType) {
+                        const reactionTime = Date.now() - this.startTime;
+                        AppState.results.alien.reactionTimes.push(reactionTime);
+
+                        if (reactionTime > 2500) {
+                            AppState.results.alien.delays++;
+                        }
+
+                        const isCorrect = button.dataset.choice === correctType;
+                        AppState.results.alien.accuracy.push(isCorrect ? 1 : 0);
+                        
+                        // Visual Feedback
+                        button.classList.add(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
+                        moduleContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+
+                        setTimeout(() => {
+                            AppState.currentLevel++; // Move to the next word
+                            this.init();
+                        }, 800);
+                    }
+                },
+                ran: {
+                    levels: [
+                        { items: 4, icons: ['zap', 'home', 'car', 'star'] },
+                        { items: 8, icons: ['zap', 'home', 'car', 'star', 'apple', 'key', 'cloud', 'anchor'] },
+                        { items: 12, icons: ['circle', 'square', 'triangle', 'star', 'heart', 'diamond', 'pentagon', 'hexagon', 'octagon', 'heptagon', 'hexagon', 'star'] } // Similar colors are handled by icon choice
+                    ],
+                    startTime: 0,
+                    init: function() {
+                        const level = this.levels[AppState.currentLevel];
+                        const grid = this.generateGrid(level);
+
+                        moduleContainer.innerHTML = `
+                            <div class="text-center flex flex-col items-center justify-center h-full">
+                                <h3 class="text-2xl text-slate-400 mb-4">Memorize & Match - Level ${AppState.currentLevel + 1}</h3>
+                                <p class="mb-4">Memorize the grid... <span id="peek-timer" class="font-mono text-amber-400">10s</span></p>
+                                <div id="ran-grid" class="grid grid-cols-4 gap-4">${grid.html}</div>
+                            </div>`;
+                        lucide.createIcons();
+                        this.runPeekPhase(grid);
+                    },
+                    generateGrid: function(level) {
+                        let grid = Array(16).fill(null);
+                        let placedIcons = [];
+                        for (let i = 0; i < level.items; i++) {
+                            let pos;
+                            do {
+                                pos = Math.floor(Math.random() * 16);
+                            } while (grid[pos]);
+                            grid[pos] = level.icons[i];
+                            placedIcons.push(level.icons[i]);
+                        }
+                        const target = placedIcons[Math.floor(Math.random() * placedIcons.length)];
+                        const html = grid.map((icon, i) => `
+                            <div class="card-flipper h-20 w-20" data-index="${i}" data-icon="${icon || 'none'}">
+                                <div class="card-inner">
+                                    <div class="card-face card-front text-sky-400">${icon ? `<i data-lucide="${icon}"></i>` : ''}</div>
+                                    <div class="card-face card-back"></div>
+                                </div>
+                            </div>`).join('');
+                        return { html, grid, target };
+                    },
+                    runPeekPhase: function(grid) {
+                        let timeLeft = 10;
+                        const timerEl = document.getElementById('peek-timer');
+                        const interval = setInterval(() => {
+                            timeLeft--;
+                            timerEl.textContent = `${timeLeft}s`;
+                            if (timeLeft <= 0) {
+                                clearInterval(interval);
+                                this.runMatchPhase(grid);
+                            }
+                        }, 1000);
+                    },
+                    runMatchPhase: function(grid) {
+                        document.querySelectorAll('.card-flipper').forEach(c => c.classList.add('flipped'));
+                        moduleContainer.querySelector('h3').textContent = 'Find the icon!';
+                        moduleContainer.querySelector('p').innerHTML = `Find: <i data-lucide="${grid.target}" class="inline-block w-6 h-6"></i>`;
+                        lucide.createIcons();
+                        this.startTime = Date.now();
+                        this.setupMatchControls(grid);
+                    },
+                    setupMatchControls: function(grid) {
+                        document.querySelectorAll('.card-flipper').forEach(card => {
+                            card.onclick = () => {
+                                const time = Date.now() - this.startTime;
+                                const isCorrect = card.dataset.icon === grid.target;
+                                card.classList.remove('flipped');
+
+                                AppState.results.ran.times.push(time);
+                                AppState.results.ran.accuracy.push(isCorrect ? 1 : 0);
+
+                                card.querySelector('.card-front').classList.add(isCorrect ? 'bg-green-500/50' : 'bg-red-500/50');
+                                
+                                setTimeout(nextLevel, 1500);
+                            };
+                        });
+                    }
+                },
+                memory: {
+                    levels: [
+                        { sequence: ['star', 'moon', 'heart'], all: ['star', 'moon', 'heart', 'sun'] },
+                        { sequence: ['sun', 'star', 'heart', 'moon'], all: ['sun', 'star', 'heart', 'moon', 'cloud'] },
+                        { sequence: ['cloud', 'heart', 'moon', 'sun', 'star'], all: ['cloud', 'heart', 'moon', 'sun', 'star', 'key'] }
+                    ],
+                    userSequence: [],
+                    init: function() {
+                        this.userSequence = [];
+                        const level = this.levels[AppState.currentLevel];
+                        // 1. Show sequence
+                        moduleContainer.innerHTML = `
+                            <div class="text-center flex flex-col items-center justify-center h-full">
+                                <h3 class="text-2xl text-slate-400 mb-4">Magic Memory Chain - Level ${AppState.currentLevel + 1}</h3>
+                                <p class="mb-8">Memorize the sequence...</p>
+                                <div class="flex gap-4">
+                                    ${level.sequence.map(icon => `<i data-lucide="${icon}" class="w-16 h-16 text-sky-300"></i>`).join('')}
+                                </div>
+                            </div>`;
+                        lucide.createIcons();
+                        speak(`Memorize: ${level.sequence.join(', ')}`);
+
+                        // 2. Show choice tray after 4 seconds
+                        setTimeout(() => this.showTray(level), 4000);
+                    },
+                    showTray: function(level) {
+                        moduleContainer.innerHTML = `
+                            <div class="text-center flex flex-col items-center justify-center h-full">
+                                <h3 class="text-2xl text-slate-400 mb-4">Recall the sequence</h3>
+                                <div id="user-sequence-display" class="h-20 w-full flex justify-center items-center gap-4 border-b-2 border-slate-700 mb-8"></div>
+                                <div class="flex flex-wrap justify-center gap-4">
+                                    ${level.all.map(icon => `<button data-icon="${icon}" class="obsidian-glass p-4 rounded-lg"><i data-lucide="${icon}" class="w-12 h-12 text-sky-400"></i></button>`).join('')}
+                                </div>
+                            </div>`;
+                        lucide.createIcons();
+                        this.setupTrayControls(level);
+                    },
+                    setupTrayControls: function(level) {
+                        const display = document.getElementById('user-sequence-display');
+                        document.querySelectorAll('[data-icon]').forEach(btn => {
+                            btn.onclick = () => {
+                                const icon = btn.dataset.icon;
+                                this.userSequence.push(icon);
+                                // Update display
+                                display.innerHTML += `<i data-lucide="${icon}" class="w-12 h-12 text-amber-400"></i>`;
+                                lucide.createIcons();
+                                btn.disabled = true;
+
+                                // Check if sequence is complete
+                                if (this.userSequence.length === level.sequence.length) {
+                                    this.checkResult(level);
+                                }
+                            };
+                        });
+                    },
+                    checkResult: function(level) {
+                        const correct = JSON.stringify(this.userSequence) === JSON.stringify(level.sequence);
+                        AppState.results.memory.accuracy += correct ? 1 : 0;
+                        // Visual feedback
+                        moduleContainer.firstElementChild.classList.add(correct ? 'border-green-500' : 'border-red-500', 'border-4');
+                        setTimeout(nextLevel, 1500);
+                    }
+                }
+            };
+
+            function startModule(moduleName) {
+                AppState.currentModule = moduleName;
+                AppState.currentLevel = 0;
+                dashboard.classList.add('opacity-0', 'pointer-events-none');
+                assessmentArea.classList.remove('hidden');
+                modules[moduleName].init();
+            }
+
+            function nextLevel() {
+                const module = modules[AppState.currentModule];
+                const levelData = module.levels || module.words;
+
+                if (AppState.currentModule !== 'alien') {
+                    AppState.currentLevel++;
+                }
+
+                if (AppState.currentLevel < levelData.length) {
+                    module.init();
+                } else {
+                    // Module is complete, show intermediate report
+                    showIntermediateReport();
+                }
+            }
+
+            function showIntermediateReport() {
+                const moduleName = AppState.currentModule;
+                const results = AppState.results[moduleName];
+                let accuracy = 0;
+                let speedScore = 0;
+
+                if (moduleName === 'alien') {
+                    accuracy = (results.accuracy.reduce((a, b) => a + b, 0) / results.accuracy.length) * 100;
+                    const avgTime = results.reactionTimes.reduce((a, b) => a + b, 0) / results.reactionTimes.length;
+                    speedScore = Math.min(100, Math.max(0, (2500 / avgTime) * 50));
+                } else if (moduleName === 'ran') {
+                    accuracy = (results.accuracy.reduce((a, b) => a + b, 0) / results.accuracy.length) * 100;
+                    const avgTime = results.times.reduce((a, b) => a + b, 0) / results.times.length;
+                    speedScore = Math.min(100, Math.max(0, (5000 / avgTime) * 50)); // 5s baseline
+                } else if (moduleName === 'memory') {
+                    accuracy = (results.accuracy / modules.memory.levels.length) * 100;
+                    speedScore = accuracy; // Speed isn't measured, so base it on accuracy
+                }
+
+                document.getElementById('intermediate-report-title').textContent = `${moduleName.charAt(0).toUpperCase() + moduleName.slice(1)} Complete`;
+                document.getElementById('intermediate-accuracy-percent').textContent = `${accuracy.toFixed(1)}%`;
+                const speedGauge = document.getElementById('intermediate-speed-gauge');
+                setTimeout(() => { speedGauge.style.width = `${speedScore}%`; }, 100); // Animate the gauge
+
+                assessmentArea.classList.add('hidden');
+                intermediateReportArea.classList.remove('hidden');
+            }
+
+            nextModuleBtn.onclick = () => {
+                intermediateReportArea.classList.add('hidden');
+                document.getElementById('intermediate-speed-gauge').style.width = '0%'; // Reset gauge
+                
+                AppState.modulesCompleted++;
+                if (AppState.modulesCompleted >= 3) {
+                    showReport();
+                } else {
+                    dashboard.classList.remove('opacity-0', 'pointer-events-none');
+                }
+            };
+
+            /**
+             * Calculates and displays the final diagnostic report.
+             */
+            function showReport() {
+                const { alien, ran, memory } = AppState.results;
+                const reportContent = document.getElementById('final-report-content');
+
+                // --- Metrics Calculation ---
+                const alienAccuracy = (alien.accuracy.reduce((a, b) => a + b, 0) / alien.accuracy.length * 100).toFixed(1) || 0;
+                const avgReactionTime = (alien.reactionTimes.reduce((a, b) => a + b, 0) / alien.reactionTimes.length).toFixed(0) || 0;
+
+                const ranAccuracy = (ran.accuracy.reduce((a, b) => a + b, 0) / ran.accuracy.length * 100).toFixed(1) || 0;
+                const avgRanTime = (ran.times.reduce((a, b) => a + b, 0) / ran.times.length / 1000).toFixed(2) || 0;
+
+                const memoryAccuracy = (memory.accuracy / modules.memory.levels.length * 100).toFixed(1) || 0;
+
+                // --- UI Population ---
+                reportContent.innerHTML = `
+                    <div class="bg-slate-800/50 p-4 rounded-lg">
+                        <h4 class="font-bold text-lg text-sky-400">Lexical Decision</h4>
+                        <p class="text-2xl font-bold mt-2">${alienAccuracy}%</p>
+                        <p class="text-sm text-slate-400">Accuracy</p>
+                        <p class="text-lg mt-2">${avgReactionTime}ms</p>
+                        <p class="text-sm text-slate-400">Avg. Reaction</p>
+                        <p class="mt-1 text-red-400">${alien.delays} Delays</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-lg">
+                        <h4 class="font-bold text-lg text-sky-400">Memorize & Match</h4>
+                        <p class="text-2xl font-bold mt-2">${ranAccuracy}%</p>
+                        <p class="text-sm text-slate-400">Accuracy</p>
+                        <p class="text-lg mt-2">${avgRanTime}s</p>
+                        <p class="text-sm text-slate-400">Avg. Time</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-lg">
+                        <h4 class="font-bold text-lg text-sky-400">Memory Chain</h4>
+                        <p class="text-2xl font-bold mt-2">${memoryAccuracy}%</p>
+                        <p class="text-sm text-slate-400">Accuracy</p>
+                    </div>
+                `;
+
+                reportArea.classList.remove('hidden');
+            }
+
+            document.querySelectorAll('[data-module]').forEach(el => {
+                el.onclick = () => startModule(el.dataset.module);
+            });
+
+            document.getElementById('download-report').onclick = () => {
+                const { alien, ran, memory } = AppState.results;
+                const alienAccuracy = (alien.accuracy.reduce((a, b) => a + b, 0) / alien.accuracy.length * 100).toFixed(1);
+                const avgReactionTime = (alien.reactionTimes.reduce((a, b) => a + b, 0) / alien.reactionTimes.length).toFixed(0);
+
+                const ranAccuracy = (ran.accuracy.reduce((a, b) => a + b, 0) / ran.accuracy.length * 100).toFixed(1);
+                const avgRanTime = (ran.times.reduce((a, b) => a + b, 0) / ran.times.length / 1000).toFixed(2);
+
+                const memoryAccuracy = (memory.accuracy / modules.memory.levels.length * 100).toFixed(1);
+
+                const reportText = `
+DYSLEXISCAN - ADVANCED COGNITIVE SCREENER REPORT
+=================================================
+
+Date: ${new Date().toISOString()}
+
+--- Lexical Decision (Alien Word Challenge) ---
+Accuracy: ${alienAccuracy}%
+Average Reaction Time: ${avgReactionTime}ms
+Processing Delays (>2500ms): ${alien.delays}
+
+--- Memorize & Match (RAN) ---
+Accuracy: ${ranAccuracy}%
+Average Time per Item: ${avgRanTime}s
+
+--- Magic Memory Chain ---
+Accuracy: ${memoryAccuracy}%
+
+=================================================
+End of Report.
+                `;
+
+                const blob = new Blob([reportText.trim()], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `DyslexiScan_Report_${new Date().getTime()}.txt`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            document.getElementById('back-to-dashboard').onclick = () => {
+                assessmentArea.classList.add('hidden');
+                dashboard.classList.remove('opacity-0', 'pointer-events-none');
+            };
+
+            closeReportBtn.onclick = () => {
+                reportArea.classList.add('hidden');
+                dashboard.classList.remove('opacity-0', 'pointer-events-none');
+                // Reset state for a fresh run
+                AppState.modulesCompleted = 0;
+                AppState.results = {
+                    alien: { accuracy: [], reactionTimes: [], delays: 0 },
+                    ran: { accuracy: [], times: [] },
+                    memory: { accuracy: 0 }
+                };
+            };
+        });
+    </script>
+</body>
+</html>
