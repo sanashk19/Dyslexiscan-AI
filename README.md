@@ -73,7 +73,7 @@ npm run dev
 ```
 The React application will be available at http://localhost:5173.
 ### 📸 Platform Preview
-Note to self: Drop a GIF or screenshot of the React dashboard in action here!
+
 
 Note to self: Drop a photo of the smart pen / hardware setup here!
 
