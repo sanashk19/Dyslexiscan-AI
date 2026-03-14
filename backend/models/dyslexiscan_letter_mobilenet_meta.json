@@ -1,0 +1,8 @@
+{
+  "class_indices": {
+    "dyslexic": 0,
+    "normal": 1
+  },
+  "class1_meaning": "normal",
+  "recommended_risk_threshold": 0.25
+}
