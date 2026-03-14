@@ -1,0 +1,8 @@
+flask
+flask-cors
+pillow
+numpy==1.26.4
+tensorflow
+opencv-python==4.10.0.84
+textblob
+scikit-learn==1.2.2
